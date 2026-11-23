@@ -2,7 +2,7 @@
   "extends": "./tsconfig.typecheck.json",
   "compilerOptions": {
     "noEmit": false,
-    "outDir": "dist",
+    "outDir": "dist-test",
     "rootDir": "."
   }
 }

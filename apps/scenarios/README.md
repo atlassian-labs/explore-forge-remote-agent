@@ -91,3 +91,21 @@ can make a real callback only when both `real: true` and the remote's
 `ENABLE_REAL_JIRA_CALLBACK_SMOKE_TESTS=true` setting are present. Real callbacks
 use the validated Forge Invocation Token context and user token, not identity
 values supplied in the scenario request.
+
+## Fake OAuth (`demo-connect`)
+
+`demo-connect` (trigger phrase "connect to agent") shows the A2A `auth-required`
+state against a simulated OAuth provider served by the remote itself
+(`/oauth/authorize`, `/oauth/consent`, `/oauth/callback`, `/oauth/token`). Nothing
+is real security: the consent page approves anyone who reaches it.
+
+- `{{authorizeUrl}}` in a step message becomes this task's consent link. The
+  task id is the OAuth `state`.
+- The `auth-required` status step does not pause. The following
+  `event: auth-check` step waits on the same task until that task is approved,
+  then continues, so the user does not need to reply. It fails the task after
+  `timeoutMs` (default 90 seconds, under Jira's ~125 s limit on an open request)
+  or stops if the task is canceled.
+- The link uses the public origin Jira reached the remote on (your tunnel). Set
+  `OAUTH_PUBLIC_BASE_URL` to override it.
+- The `/oauth` routes are public (the browser calls them, not Jira).

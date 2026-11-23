@@ -131,6 +131,11 @@ web_modules/
 .env.production.local
 .env.local
 
+# Forge working directory (tunnel output, cache, etc.) — depth-safe for all projects
+**/.forge/
+# Forge container service generated assets — depth-safe for all projects
+**/.container-service-assets/
+
 # parcel-bundler cache (https://parceljs.org/)
 .cache
 .parcel-cache
@@ -142,6 +147,7 @@ out
 # Nuxt.js build / generate output
 .nuxt
 dist
+dist-test
 
 # Gatsby files
 .cache/

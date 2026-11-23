@@ -1,8 +1,8 @@
-import { log } from "@forge-ahead/logging";
-
-import { createA2aServer } from "./server.js";
+import { log } from "./logger.js";
+import { createA2aServer, startupConfiguration } from "./server.js";
 
 const port = Number(process.env.PORT ?? 3000);
+log.info({ config: startupConfiguration() }, "[startup] configuration");
 const serverResult = createA2aServer();
 
 if (serverResult.isErr()) {

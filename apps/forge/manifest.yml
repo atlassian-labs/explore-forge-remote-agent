@@ -1,5 +1,5 @@
 app:
-  id: ari:cloud:ecosystem::app/cd8a9d8f-c176-435c-a254-9479215dd18f
+  id: ari:cloud:ecosystem::app/252214cd-6790-4c66-bf0a-5d07a5b779af
   runtime:
     name: nodejs24.x
 environment:
@@ -32,9 +32,28 @@ remotes:
     baseUrl: ${REMOTE_BASE_URL}
     operations:
       - compute
+    # Jira forwards two tokens on message and task requests, so the remote can
+    # call the Jira REST API:
+    #   - `x-forge-oauth-user` (appUserToken): the invoking user's token, used
+    #     as the Bearer token to act as that user.
+    #   - `x-forge-oauth-system` (appSystemToken): the app's own token, used 
+    #     as the Bearer token to act as the app.
+    # Each needs its matching `read:app-*-token` scope below.
+    auth:
+      appSystemToken:
+        enabled: true
+      appUserToken:
+        enabled: true
 permissions:
   scopes:
+    # Lets the remote read Jira work items (the `read` step of the
+    # jira-callback scenario calls GET /rest/api/3/issue/{key}).
     - read:jira-work
+    # Needed for the `x-forge-oauth-user` and `x-forge-oauth-system` headers
+    # (see `auth` on the endpoint and the remote): the user token and the
+    # app's own token.
+    - read:app-user-token
+    - read:app-system-token
 resources:
   - key: agent-resources
     path: resources

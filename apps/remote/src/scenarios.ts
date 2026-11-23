@@ -25,6 +25,7 @@ export type ScenarioStep = {
   real?: boolean;
   state?: string;
   showConclusionBeforeCompletion?: boolean;
+  timeoutMs?: number;
   transitionId?: string;
   waitForUserInput?: boolean;
 };
@@ -263,7 +264,9 @@ export function invocationContextFromParts(
     comment: normalizedComment,
     entrySurface: string(context.entrySurface) ?? "",
     tenantId: string(context.tenantId) ?? "",
-    invokerId: string(context.invokerId) ?? "",
+    // Jira's data part carries `userAccountId`; `invokerId` is the simulator's
+    // own name for it. Untrusted: real callbacks use the FIT identity instead.
+    invokerId: string(context.invokerId) ?? string(context.userAccountId) ?? "",
   };
 }
 

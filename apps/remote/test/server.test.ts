@@ -8,7 +8,7 @@ import type {
   RemoteLogRecordLogger,
 } from "@forge-ahead/remote/logging";
 import type { LoadedScenario } from "../src/scenarios.js";
-import { createA2aServer } from "../src/server.js";
+import { createA2aServer, startupConfiguration } from "../src/server.js";
 
 type RequestOptions = {
   body: string;
@@ -37,6 +37,7 @@ type CompletedResponse = {
 };
 type DiagnosticEvent = Record<string, unknown>;
 type Fixture = {
+  baseUrl: string;
   request(options: RequestOptions): Promise<Response>;
   token(): string;
 };
@@ -98,6 +99,7 @@ async function createFixture(
     scenarios,
     enableRealJiraCallbacks,
     jiraFetch,
+    logRequestData,
     remoteLogger,
     fitClaims = {},
   }: {
@@ -107,6 +109,7 @@ async function createFixture(
     scenarios?: LoadedScenario[];
     enableRealJiraCallbacks?: boolean;
     jiraFetch?: typeof fetch;
+    logRequestData?: boolean;
     remoteLogger?: RemoteLogRecordLogger;
     fitClaims?: Record<string, unknown>;
   } = {},
@@ -160,6 +163,7 @@ async function createFixture(
     ...(scenarios ? { scenarios } : {}),
     ...(enableRealJiraCallbacks ? { enableRealJiraCallbacks } : {}),
     ...(jiraFetch ? { jiraFetch } : {}),
+    ...(logRequestData === undefined ? {} : { logRequestData }),
     ...(remoteLogger ? { remoteLogger } : {}),
   } as never);
   assert.equal(appResult.isOk(), true);
@@ -170,6 +174,7 @@ async function createFixture(
   t.after(() => close(server));
 
   return {
+    baseUrl,
     token: () => token,
     request: ({
       token,
@@ -426,6 +431,7 @@ test("emits safe correlated diagnostics for a selected scenario", async (t) => {
   const diagnostics: DiagnosticEvent[] = [];
   const { request, token } = await createFixture(t, {
     diagnostics: (event: DiagnosticEvent) => diagnostics.push(event),
+    logRequestData: false,
     scenarios: [
       {
         id: "work-item",
@@ -503,6 +509,78 @@ test("emits safe correlated diagnostics for a selected scenario", async (t) => {
   assert.equal(output.includes(secret), false);
   assert.equal(output.includes("Sensitive work-item summary"), false);
   assert.equal(output.includes("Sensitive comment body"), false);
+});
+
+test("logs the request data Jira shares with the agent, redacting tokens", async (t) => {
+  const diagnostics: DiagnosticEvent[] = [];
+  const { request, token } = await createFixture(t, {
+    diagnostics: (event: DiagnosticEvent) => diagnostics.push(event),
+    scenarios: [
+      {
+        id: "default",
+        default: true,
+        match: { contains: [] },
+        steps: [{ event: "status-update", state: "completed" }],
+      },
+    ],
+  });
+  const response = await request({
+    token: token(),
+    body: JSON.stringify({
+      jsonrpc: "2.0",
+      id: "request-data-run",
+      method: "SendMessage",
+      params: {
+        message: {
+          contextId: "request-data-context",
+          messageId: "request-data-message",
+          role: "ROLE_USER",
+          parts: [
+            { text: "Please fix the login bug." },
+            {
+              data: {
+                userAccountId: "user-account",
+                agentAccountId: "agent-account",
+                invocationType: "ISSUE_ASSIGNMENT",
+                issue: {
+                  id: "10001",
+                  fields: {
+                    key: "PROJ-1",
+                    summary: "Login fails",
+                    description: "Steps to reproduce",
+                  },
+                },
+                token: "forge-token-secret",
+              },
+            },
+          ],
+        },
+      },
+    }),
+  });
+
+  assert.equal(response.status, 200);
+  const logged = diagnostics.find((event) => event.event === "request-data");
+  assert.ok(logged);
+  assert.deepEqual(logged.texts, ["Please fix the login bug."]);
+  const output = JSON.stringify(logged);
+  for (const expected of [
+    "user-account",
+    "agent-account",
+    "ISSUE_ASSIGNMENT",
+    "PROJ-1",
+    "Login fails",
+    "Steps to reproduce",
+  ])
+    assert.ok(output.includes(expected), expected);
+  assert.equal(output.includes("forge-token-secret"), false);
+  assert.ok(
+    diagnostics.some(
+      (event) =>
+        event.event === "agent-status" &&
+        event.state === "TASK_STATE_COMPLETED",
+    ),
+  );
 });
 
 test("simulates a correlated Jira comment callback without mutating Jira", async (t) => {
@@ -720,6 +798,7 @@ test("maps simulated callback outcomes and unavailable context to visible task r
 
 test("runs explicitly enabled Jira callback smoke actions with validated identity", async (t) => {
   const calls: { body?: unknown; method?: string; url: string }[] = [];
+  const events: DiagnosticEvent[] = [];
   const jiraFetch: typeof fetch = async (input, init) => {
     calls.push({
       url: String(input),
@@ -728,6 +807,11 @@ test("runs explicitly enabled Jira callback smoke actions with validated identit
     });
     if (String(input).endsWith("/transitions"))
       return Response.json({ transitions: [{ id: "31" }] });
+    if (init?.method === "GET")
+      return Response.json({
+        key: "PROJ-42",
+        fields: { summary: "Fix login", status: { name: "In Progress" } },
+      });
     return new Response(null, { status: 204 });
   };
   const scenarios: LoadedScenario[] = [
@@ -749,6 +833,7 @@ test("runs explicitly enabled Jira callback smoke actions with validated identit
     },
   ];
   const { request, token } = await createFixture(t, {
+    diagnostics: (event) => events.push(event),
     enableRealJiraCallbacks: true,
     fitClaims: {
       app: { apiBaseUrl: "https://jira.example.test" },
@@ -795,7 +880,7 @@ test("runs explicitly enabled Jira callback smoke actions with validated identit
     [
       {
         method: "GET",
-        url: "https://jira.example.test/rest/api/3/issue/PROJ-42",
+        url: "https://jira.example.test/rest/api/3/issue/PROJ-42?fields=summary,status,labels",
       },
       {
         method: "POST",
@@ -809,6 +894,29 @@ test("runs explicitly enabled Jira callback smoke actions with validated identit
   );
   assert.match(JSON.stringify(calls[1]?.body), /user-from-fit/);
   assert.deepEqual(calls[2]?.body, { transition: { id: "31" } });
+  assert.deepEqual(
+    events.find((event) => event.event === "jira-credentials")?.missing,
+    [],
+  );
+  // The read is reported on the task and its response is logged.
+  assert.ok(
+    events.some(
+      (event) =>
+        event.event === "agent-status" &&
+        event.source === "jira-callback" &&
+        event.message ===
+          "Read Jira work item PROJ-42: Fix login (status: In Progress).",
+    ),
+    JSON.stringify(events.filter((event) => event.source === "jira-callback")),
+  );
+  const logged = events.find(
+    (event) => event.event === "jira-response" && event.action === "read",
+  );
+  assert.equal(logged?.httpStatus, 200);
+  assert.deepEqual(logged?.body, {
+    key: "PROJ-42",
+    fields: { summary: "Fix login", status: { name: "In Progress" } },
+  });
 });
 
 test("emits a terminal log when a Jira callback rejects a task", async (t) => {
@@ -959,6 +1067,72 @@ test("resumes a paused coding task over streaming", async (t) => {
   assert.match(stream, /Repository analysis/);
   assert.match(stream, /Repository assessment/);
   assert.doesNotMatch(stream, /UnsupportedOperationError/);
+});
+
+test("resumes an initial input pause over streaming while the first stream is still open", async (t) => {
+  const { request, token } = await createFixture(t);
+  const send = (id: string, message: Record<string, unknown>) =>
+    request({
+      token: token(),
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id,
+        method: "SendStreamingMessage",
+        params: {
+          message: {
+            role: "ROLE_USER",
+            messageId: `${id}-message`,
+            ...message,
+          },
+        },
+      }),
+    });
+
+  // Real Jira keeps this first request open after the pause, so read it
+  // incrementally instead of waiting for it to end.
+  const first = await send("initial-pause-start", {
+    contextId: "initial-pause-context",
+    parts: [{ text: "Please confirm the target environment" }],
+  });
+  const reader = first.body?.getReader();
+  assert.ok(reader);
+  const decoder = new TextDecoder();
+  let firstStream = "";
+  while (!/TASK_STATE_INPUT_REQUIRED/.test(firstStream)) {
+    const chunk = await reader.read();
+    assert.equal(chunk.done, false, "the first stream ended before the pause");
+    firstStream += decoder.decode(chunk.value);
+  }
+  const taskId = /"id":"([^"]+)","contextId":"initial-pause-context"/.exec(
+    firstStream,
+  )?.[1];
+  assert.ok(taskId, "expected the first stream to include its task ID");
+
+  const resumed = await send("initial-pause-resume", {
+    taskId,
+    contextId: "initial-pause-context",
+    parts: [{ text: "Env Dev" }],
+  });
+  const resumedStream = await resumed.text();
+
+  // Drain what is left of the first stream (with a bound, so a stream that
+  // never closes fails the test instead of hanging it).
+  const deadline = Date.now() + 3000;
+  for (;;) {
+    const chunk = await Promise.race([
+      reader.read(),
+      new Promise<{ done: true; value?: undefined }>((resolve) =>
+        setTimeout(() => resolve({ done: true }), 500),
+      ),
+    ]);
+    if (chunk.done || Date.now() > deadline) break;
+    firstStream += decoder.decode(chunk.value);
+  }
+  await reader.cancel().catch(() => undefined);
+
+  assert.match(resumedStream, /TASK_STATE_COMPLETED/);
+  assert.doesNotMatch(resumedStream, /ordering violation/);
+  assert.doesNotMatch(firstStream, /ordering violation/);
 });
 
 test("returns the first Markdown example in an input-required prompt", async (t) => {
@@ -1450,4 +1624,414 @@ test("cancels delayed work after retaining its earlier artifact", async (t) => {
     JSON.stringify(task.result).includes("TASK_STATE_COMPLETED"),
     false,
   );
+});
+
+test("GetTask returns the stored task after SendMessage", async (t) => {
+  const { request, token } = await createFixture(t, { appId: "test" });
+  const sent = (await (
+    await request({
+      token: token(),
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: "send-1",
+        method: "SendMessage",
+        params: {
+          message: {
+            messageId: "message-get-1",
+            role: "ROLE_USER",
+            parts: [{ text: "hello" }],
+          },
+        },
+      }),
+    })
+  ).json()) as CompletedResponse;
+
+  const response = await request({
+    token: token(),
+    body: JSON.stringify({
+      jsonrpc: "2.0",
+      id: "get-1",
+      method: "GetTask",
+      params: { id: sent.result.task.id },
+    }),
+  });
+
+  assert.equal(response.status, 200);
+  const body = (await response.json()) as {
+    error?: unknown;
+    result?: { id: string; status: { state: string } };
+  };
+  assert.equal(body.error, undefined, JSON.stringify(body));
+  assert.equal(body.result?.id, sent.result.task.id);
+  assert.equal(body.result?.status.state, "TASK_STATE_COMPLETED");
+});
+
+test("logs the JSON-RPC error body when GetTask cannot find the task", async (t) => {
+  const warn = t.mock.method(console, "warn", () => {});
+  const { request, token } = await createFixture(t, { appId: "test" });
+
+  const response = await request({
+    token: token(),
+    body: JSON.stringify({
+      jsonrpc: "2.0",
+      id: "get-missing",
+      method: "GetTask",
+      params: { id: "00000000-0000-4000-8000-000000000000" },
+    }),
+  });
+
+  // JSON-RPC errors reply with HTTP 200; only the body says it failed.
+  assert.equal(response.status, 200);
+  const body = (await response.json()) as { error?: { message: string } };
+  assert.ok(body.error, JSON.stringify(body));
+
+  const logged = warn.mock.calls
+    .map((call) => String(call.arguments[0]))
+    .find((line) => line.includes("[JSON-RPC] error response"));
+  assert.ok(logged, "expected an error-response log line");
+  assert.match(logged, /jsonRpcMethod=GetTask/);
+  assert.ok(logged.includes(body.error.message), logged);
+});
+
+test("logs the body of a successful GetTask reply, and not when request logging is off", async (t) => {
+  for (const [logRequestData, expected] of [
+    [true, true],
+    [false, false],
+  ] as const) {
+    const info = t.mock.method(console, "info", () => {});
+    const { request, token } = await createFixture(t, { logRequestData });
+    const call = async (id: string, method: string, params: object) =>
+      request({
+        token: token(),
+        body: JSON.stringify({ jsonrpc: "2.0", id, method, params }),
+      });
+    const sent = (await (
+      await call(`send-${logRequestData}`, "SendMessage", {
+        message: {
+          role: "ROLE_USER",
+          messageId: `m-${logRequestData}`,
+          parts: [{ text: "hello" }],
+        },
+      })
+    ).json()) as CompletedResponse;
+    await call(`get-${logRequestData}`, "GetTask", {
+      id: sent.result.task.id,
+    });
+
+    const line = info.mock.calls
+      .map((entry) => String(entry.arguments[0]))
+      .find(
+        (text) =>
+          text.includes("[JSON-RPC] response body") &&
+          text.includes("jsonRpcMethod=GetTask"),
+      );
+    if (expected) {
+      assert.ok(line, "expected a GetTask response log line");
+      assert.match(line, new RegExp(`taskId=${sent.result.task.id}`));
+      assert.match(line, /state=TASK_STATE_COMPLETED/);
+      assert.ok(line.includes("Finished the task."), line);
+    } else {
+      assert.equal(line, undefined);
+    }
+    info.mock.restore();
+  }
+});
+
+test("runs a simulated Jira callback for Jira's real payload shape", async (t) => {
+  const scenarios: LoadedScenario[] = [
+    {
+      id: "jira-shaped-callback",
+      default: true,
+      match: { contains: [] },
+      steps: [
+        { event: "status-update", state: "working", message: "Started." },
+        { event: "jira-callback", action: "read" },
+        { event: "status-update", state: "completed", message: "Done." },
+      ],
+    },
+  ];
+  const events: DiagnosticEvent[] = [];
+  const { request, token } = await createFixture(t, {
+    diagnostics: (event) => events.push(event),
+    scenarios,
+  });
+
+  const response = await request({
+    token: token(),
+    body: JSON.stringify({
+      jsonrpc: "2.0",
+      id: "jira-shaped",
+      method: "SendMessage",
+      params: {
+        message: {
+          contextId: "jira-shaped-context",
+          messageId: "jira-shaped-message",
+          role: "ROLE_USER",
+          parts: [
+            { text: "You have been assigned to a work item." },
+            {
+              data: {
+                userAccountId: "557057:user",
+                agentAccountId: "712020:agent",
+                issue: { id: "66408", fields: { key: "MOBL-58" } },
+                invocationType: "ISSUE_ASSIGNMENT",
+              },
+            },
+          ],
+        },
+      },
+    }),
+  });
+
+  assert.equal(response.status, 200);
+  const body = JSON.stringify(await response.json());
+  assert.doesNotMatch(body, /invocation context is unavailable/);
+  assert.match(body, /TASK_STATE_COMPLETED/);
+  const credentials = events.find(
+    (event) => event.event === "jira-credentials",
+  );
+  assert.equal(credentials?.available, false);
+  assert.deepEqual(credentials?.missing, [
+    "fit.app.apiBaseUrl",
+    "fit.principal",
+    "tenant (fit.context.cloudId)",
+  ]);
+  // The log says why the callback was simulated.
+  assert.deepEqual(
+    events.find((event) => event.event === "jira-callback")?.simulatedBecause,
+    ["env-flag-off", "step-not-real", "no-forge-user-token-or-tenant"],
+  );
+});
+
+test("startup configuration reports resolved settings and nothing else", () => {
+  assert.deepEqual(
+    startupConfiguration({
+      ENABLE_REAL_JIRA_CALLBACK_SMOKE_TESTS: "true",
+      FORGE_APP_ID: "app-1",
+      LOG_AGENT_REQUEST_DATA: "false",
+      LOG_FORMAT: "json",
+      PORT: "4000",
+      SECRET_TOKEN: "do-not-log",
+    }),
+    {
+      port: 4000,
+      forgeAppId: "app-1",
+      scenarioDirectory: "(bundled)",
+      realJiraCallbacks: true,
+      logRequestData: false,
+      logFormat: "json",
+      logLevel: "(default)",
+    },
+  );
+  assert.deepEqual(startupConfiguration({}), {
+    port: 3000,
+    forgeAppId: "(unset)",
+    scenarioDirectory: "(bundled)",
+    realJiraCallbacks: false,
+    logRequestData: true,
+    logFormat: "pretty",
+    logLevel: "(default)",
+  });
+});
+
+test("waits in auth-required for fake OAuth and continues without a reply once approved", async (t) => {
+  const { baseUrl, request, token } = await createFixture(t);
+  const call = async (id: string, method: string, params: object) => {
+    const response = await request({
+      token: token(),
+      body: JSON.stringify({ jsonrpc: "2.0", id, method, params }),
+    });
+    const body = (await response.json()) as {
+      result: CompletedResponse["result"]["task"] & {
+        task?: CompletedResponse["result"]["task"];
+      };
+    };
+    // SendMessage wraps the task in `result.task`; GetTask returns it directly.
+    return body.result.task ?? body.result;
+  };
+
+  const waiting = await call("connect-start", "SendMessage", {
+    message: {
+      role: "ROLE_USER",
+      messageId: "connect-start",
+      contextId: "connect-context",
+      parts: [{ text: "Please connect to agent" }],
+    },
+  });
+  assert.equal(waiting.status.state, "TASK_STATE_AUTH_REQUIRED");
+  const link = JSON.stringify(waiting.status.message).match(
+    /\/oauth\/authorize\?state=([\w-]+)/,
+  );
+  assert.ok(link, "the message links to the consent page");
+  const state = link[1] ?? "";
+  assert.equal(state, waiting.id);
+  assert.doesNotMatch(JSON.stringify(waiting.status.message), /reply/i);
+
+  const getTask = () => call("connect-poll", "GetTask", { id: waiting.id });
+  // Not approved yet: the task is still waiting, not failed or completed.
+  assert.equal((await getTask()).status.state, "TASK_STATE_AUTH_REQUIRED");
+
+  // The consent routes are public (no FIT): the user's browser calls them.
+  const consentPage = await fetch(`${baseUrl}/oauth/authorize?state=${state}`);
+  assert.equal(consentPage.status, 200);
+  assert.match(await consentPage.text(), /wants access/);
+  const consent = await fetch(`${baseUrl}/oauth/consent`, {
+    method: "POST",
+    redirect: "manual",
+    headers: { "content-type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ state, decision: "approve" }),
+  });
+  assert.equal(consent.status, 302);
+  const callback = await fetch(
+    new URL(consent.headers.get("location") ?? "", `${baseUrl}/oauth/consent`),
+  );
+  assert.equal(callback.status, 200);
+  assert.match(await callback.text(), /Connected/);
+
+  // No reply is sent: the same task completes by itself.
+  let finalState = "";
+  for (
+    let attempt = 0;
+    attempt < 60 && finalState !== "TASK_STATE_COMPLETED";
+    attempt++
+  ) {
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    finalState = (await getTask()).status.state;
+  }
+  assert.equal(finalState, "TASK_STATE_COMPLETED");
+});
+
+test("a message sent to a task waiting for authorization does not skip the authorization", async (t) => {
+  const { baseUrl, request, token } = await createFixture(t);
+  const call = async (id: string, method: string, params: object) => {
+    const response = await request({
+      token: token(),
+      body: JSON.stringify({ jsonrpc: "2.0", id, method, params }),
+    });
+    const body = (await response.json()) as {
+      result: CompletedResponse["result"]["task"] & {
+        task?: CompletedResponse["result"]["task"];
+      };
+    };
+    return body.result.task ?? body.result;
+  };
+
+  const waiting = await call("skip-start", "SendMessage", {
+    message: {
+      role: "ROLE_USER",
+      messageId: "skip-start",
+      contextId: "skip-context",
+      parts: [{ text: "Please connect to agent" }],
+    },
+  });
+  assert.equal(waiting.status.state, "TASK_STATE_AUTH_REQUIRED");
+
+  // The spec says agents SHOULD accept messages for a task in AUTH_REQUIRED.
+  // Doing so must not run the later steps before the user has approved.
+  const early = await call("skip-early", "SendMessage", {
+    message: {
+      role: "ROLE_USER",
+      messageId: "skip-early",
+      taskId: waiting.id,
+      contextId: waiting.contextId,
+      parts: [{ text: "Continue" }],
+    },
+  });
+  assert.equal(early.status.state, "TASK_STATE_AUTH_REQUIRED");
+  assert.match(JSON.stringify(early.status.message), /oauth\/authorize/);
+  await new Promise((resolve) => setTimeout(resolve, 400));
+  const stillWaiting = await call("skip-poll", "GetTask", { id: waiting.id });
+  assert.equal(stillWaiting.status.state, "TASK_STATE_AUTH_REQUIRED");
+
+  // Approving still lets the original wait finish the task.
+  const consent = await fetch(`${baseUrl}/oauth/consent`, {
+    method: "POST",
+    redirect: "manual",
+    headers: { "content-type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ state: waiting.id, decision: "approve" }),
+  });
+  await fetch(
+    new URL(consent.headers.get("location") ?? "", `${baseUrl}/oauth/consent`),
+  );
+  let finalState = "";
+  for (
+    let attempt = 0;
+    attempt < 60 && finalState !== "TASK_STATE_COMPLETED";
+    attempt++
+  ) {
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    finalState = (await call("skip-final", "GetTask", { id: waiting.id }))
+      .status.state;
+  }
+  assert.equal(finalState, "TASK_STATE_COMPLETED");
+});
+
+test("a streamed message to a task waiting for authorization gets the pending status", async (t) => {
+  const { request, token } = await createFixture(t);
+  const send = (id: string, message: Record<string, unknown>) =>
+    request({
+      token: token(),
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id,
+        method: "SendStreamingMessage",
+        params: {
+          message: {
+            role: "ROLE_USER",
+            messageId: `${id}-message`,
+            ...message,
+          },
+        },
+      }),
+    });
+  // The first stream stays open in auth-required, as it does with Jira.
+  const first = await send("stream-auth-start", {
+    contextId: "stream-auth-context",
+    parts: [{ text: "Please connect to agent" }],
+  });
+  const reader = first.body?.getReader();
+  assert.ok(reader);
+  const decoder = new TextDecoder();
+  let firstStream = "";
+  while (!/oauth\/authorize/.test(firstStream)) {
+    const chunk = await reader.read();
+    assert.equal(chunk.done, false, "the first stream ended early");
+    firstStream += decoder.decode(chunk.value);
+  }
+  const taskId = /"id":"([^"]+)","contextId":"stream-auth-context"/.exec(
+    firstStream,
+  )?.[1];
+  assert.ok(taskId);
+
+  const second = await Promise.race([
+    send("stream-auth-message", {
+      taskId,
+      contextId: "stream-auth-context",
+      parts: [{ text: "Continue" }],
+    }).then((response) => response.text()),
+    new Promise<string>((resolve) =>
+      setTimeout(() => resolve("TIMEOUT"), 3000),
+    ),
+  ]);
+  await reader.cancel().catch(() => undefined);
+
+  assert.doesNotMatch(second, /ordering violation|before initial/);
+  assert.doesNotMatch(second, /TASK_STATE_COMPLETED/);
+  assert.doesNotMatch(firstStream, /ordering violation/);
+});
+
+test("fake OAuth rejects a reused or unknown authorization code", async (t) => {
+  const { baseUrl } = await createFixture(t);
+  const replay = await fetch(`${baseUrl}/oauth/callback?code=never-issued`);
+  assert.equal(replay.status, 400);
+  const token = await fetch(`${baseUrl}/oauth/token`, {
+    method: "POST",
+    headers: { "content-type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      grant_type: "authorization_code",
+      code: "never-issued",
+    }),
+  });
+  assert.equal(token.status, 400);
+  assert.deepEqual(await token.json(), { error: "invalid_grant" });
 });

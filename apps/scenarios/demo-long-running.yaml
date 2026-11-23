@@ -1,0 +1,58 @@
+# Demonstrates a long-running task over SSE (SendStreamingMessage). The task
+# stays in `working` for about two minutes while the stream delivers a status
+# update and an appended artifact chunk every 15 seconds, then completes. The
+# stream closes on the terminal state. No push notifications are involved.
+# Cancel the task mid-run to see playback stop before `completed`.
+id: demo-long-running
+match:
+  contains:
+    - "long running analysis"
+steps:
+  - event: status-update
+    state: working
+    message: "### Long-running analysis started\n\nThis task runs for about two minutes and reports progress as it goes."
+  - event: artifact-update
+    artifact:
+      artifactId: long-running-analysis-1
+      name: "Long-running analysis"
+      description: "A progress log that grows while the task runs."
+      parts:
+        - kind: text
+          text: "# Long-running analysis\n\n- [00:15] Collected input data"
+    delayMs: 15000
+  - event: status-update
+    message: "Stage 1 of 4 complete."
+  - event: artifact-update
+    artifact:
+      artifactId: long-running-analysis-1
+      parts:
+        - kind: text
+          text: "\n- [00:30] Normalized records"
+    append: true
+    delayMs: 15000
+  - event: status-update
+    message: "Stage 2 of 4 complete."
+  - event: artifact-update
+    artifact:
+      artifactId: long-running-analysis-1
+      parts:
+        - kind: text
+          text: "\n- [00:45] Ran comparison checks"
+    append: true
+    delayMs: 15000
+  - event: status-update
+    message: "Stage 3 of 4 complete."
+  - event: artifact-update
+    artifact:
+      artifactId: long-running-analysis-1
+      parts:
+        - kind: text
+          text: "\n- [01:00] Summarized findings"
+    append: true
+    lastChunk: true
+    delayMs: 15000
+  - event: status-update
+    state: completed
+    message: "### Long-running analysis ready\n\nAll four stages finished. The full progress log is in the artifact."
+    final: true
+    delayMs: 15000

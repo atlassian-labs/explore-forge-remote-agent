@@ -7,7 +7,7 @@
   "license": "Apache-2.0",
   "scripts": {
     "build": "rm -rf dist && tsc && cp -R ../scenarios dist/scenarios",
-    "build:test": "rm -rf dist && tsc --project tsconfig.test.json && cp -R ../scenarios dist/scenarios",
+    "build:test": "rm -rf dist-test && tsc --project tsconfig.test.json && cp -R ../scenarios dist-test/scenarios",
     "check": "npm run format:check && npm run lint && npm run typecheck && npm run test",
     "dev": "npm run build && bash ../../scripts/env-var.sh 'tsc --watch --preserveWatchOutput & SCENARIO_DIRECTORY=../scenarios node --watch dist/index.js'",
     "format": "biome format --write",
@@ -16,7 +16,7 @@
     "lint:check": "biome lint",
     "lint:fix": "biome lint --write",
     "start": "npm run build && bash ../../scripts/env-var.sh 'SCENARIO_DIRECTORY=../scenarios node dist/index.js'",
-    "test": "npm run build:test && node --test dist/test/*.test.js",
+    "test": "npm run build:test && node --test dist-test/test/*.test.js",
     "typecheck": "tsc --project tsconfig.typecheck.json"
   },
   "dependencies": {

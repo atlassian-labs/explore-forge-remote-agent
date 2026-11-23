@@ -101,12 +101,15 @@ test("freezes steps when creating a paused task", async () => {
   ];
   await runner.execute(requestContext as never, eventBus as never);
 
+  // The initial input pause is the Task plus a closing statusUpdate, so the
+  // SDK ends the first stream there.
   assert.deepEqual(events.map(stateFromEvent), [
+    TaskState.TASK_STATE_INPUT_REQUIRED,
     TaskState.TASK_STATE_INPUT_REQUIRED,
     TaskState.TASK_STATE_WORKING,
     TaskState.TASK_STATE_COMPLETED,
   ]);
-  assert.equal(messageFromEvent(events[1]), "before edit");
+  assert.equal(messageFromEvent(events[2]), "before edit");
 });
 
 test("freezes the polling projection when creating a task", async () => {
@@ -194,6 +197,7 @@ test("resumes a paused scenario with working before completion", async () => {
   await runner.execute(requestContext as never, eventBus as never);
 
   assert.deepEqual(events.map(stateFromEvent), [
+    TaskState.TASK_STATE_INPUT_REQUIRED,
     TaskState.TASK_STATE_INPUT_REQUIRED,
     TaskState.TASK_STATE_WORKING,
     TaskState.TASK_STATE_COMPLETED,

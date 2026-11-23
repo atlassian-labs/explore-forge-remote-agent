@@ -1,0 +1,27 @@
+# Connect to Agent: authorization against a simulated OAuth provider (the
+# remote's /oauth routes). The agent reports auth-required with a consent link
+# and keeps waiting on the same task. Once the user approves in the browser the
+# agent continues by itself; no reply is needed. If nobody approves within the
+# default wait (90 seconds, see scenario-runner.ts) the task fails.
+id: demo-connect
+match:
+  contains:
+    - "connect to agent"
+steps:
+  - event: status-update
+    state: working
+    message: "### Connecting to the agent\n\nChecking whether you are already connected."
+  - event: status-update
+    state: auth-required
+    message: "### Authorization required\n\nYou need to connect to this agent before I can continue.\n\n[Connect to Agent]({{authorizeUrl}})\n\nApprove on the consent page. I'll continue automatically once you do."
+  - event: auth-check
+    message: "### Authorization not completed\n\nThe connection was not approved in time. Ask me to connect again to retry."
+  - event: status-update
+    state: working
+    message: "#### Connected\n\nAuthorization granted (scope `agent:connect`). Finishing setup."
+    delayMs: 500
+  - event: status-update
+    state: completed
+    message: "### Connected to the agent\n\nYou are connected and can use the agent."
+    final: true
+    delayMs: 500
