@@ -1698,6 +1698,10 @@ test("logs the body of a successful GetTask reply, and not when request logging 
     [true, true],
     [false, false],
   ] as const) {
+    process.env.LOG_VERBOSE = "true";
+    t.after(() => {
+      delete process.env.LOG_VERBOSE;
+    });
     const info = t.mock.method(console, "info", () => {});
     const { request, token } = await createFixture(t, { logRequestData });
     const call = async (id: string, method: string, params: object) =>

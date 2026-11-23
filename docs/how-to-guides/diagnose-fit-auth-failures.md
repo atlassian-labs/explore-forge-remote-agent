@@ -9,7 +9,10 @@ The active route is `POST /a2a/json-rpc`. The Forge endpoint in
 [`apps/forge/manifest.yml`](../../apps/forge/manifest.yml) maps that route to
 the configured remote.
 
-A healthy request produces these remote log messages in order:
+By default the remote logs only the JSON-RPC request bodies Jira sends, plus
+warnings and errors. To see the request lifecycle while diagnosing, start the
+remote with `LOG_VERBOSE=true`. A healthy request then produces these remote
+log messages in order:
 
 ```text
 [HTTP] request received

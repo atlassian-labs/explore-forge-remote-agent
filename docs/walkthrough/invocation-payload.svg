@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 560" role="img" aria-labelledby="title desc" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
+  <title id="title">Data shared with your remote agent</title>
+  <desc id="desc">The first message Jira sends has two parts. The text part holds instructions and optional context. The data part holds structured information: the invoking user, the agent, the invocation type, and for work item invocations the work item's ID, key, summary and description. Rovo chat messages contain only a text part.</desc>
+
+  <rect width="960" height="560" fill="#FFFFFF"/>
+  <text x="480" y="34" text-anchor="middle" font-size="22" font-weight="700" fill="#172B4D">Data shared with your remote agent</text>
+  <text x="480" y="56" text-anchor="middle" font-size="12" fill="#42526E">Most initial invocations carry two parts. Your integration should process both.</text>
+
+  <!-- Envelope -->
+  <rect x="40" y="80" width="880" height="270" rx="14" fill="#DEEBFF" stroke="#0052CC" stroke-width="2"/>
+  <text x="60" y="106" font-size="14" font-weight="700" fill="#0747A6">Message from Jira to your remote service</text>
+
+  <!-- Text part -->
+  <rect x="64" y="124" width="400" height="206" rx="10" fill="#FFFFFF" stroke="#0052CC" stroke-width="2"/>
+  <text x="84" y="152" font-size="16" font-weight="700" fill="#172B4D">text part</text>
+  <text x="84" y="176" font-size="12" fill="#42526E">Instructions for the agent, in plain text.</text>
+  <text x="84" y="204" font-size="12" font-weight="700" fill="#172B4D">May also include optional context:</text>
+  <text x="84" y="226" font-size="12" fill="#42526E">• Space instructions set by an admin</text>
+  <text x="84" y="246" font-size="12" fill="#42526E">• Related resources (titles and URLs)</text>
+  <text x="84" y="278" font-size="11" fill="#6B778C">Linked content is not included. Fetch it with the</text>
+  <text x="84" y="294" font-size="11" fill="#6B778C">invoking user's permissions.</text>
+
+  <!-- Data part -->
+  <rect x="496" y="124" width="400" height="206" rx="10" fill="#FFFFFF" stroke="#0052CC" stroke-width="2"/>
+  <text x="516" y="152" font-size="16" font-weight="700" fill="#172B4D">data part</text>
+  <text x="516" y="176" font-size="12" fill="#42526E">Structured information about the invocation:</text>
+  <text x="516" y="204" font-size="12" fill="#42526E">• Invoking user's account ID</text>
+  <text x="516" y="224" font-size="12" fill="#42526E">• Agent's account ID</text>
+  <text x="516" y="244" font-size="12" fill="#42526E">• Invocation type (<tspan font-family="Menlo, Consolas, monospace" font-size="11">invocationType</tspan>)</text>
+  <text x="516" y="272" font-size="12" font-weight="700" fill="#172B4D">Work item invocations also include:</text>
+  <text x="516" y="292" font-size="12" fill="#42526E">• The work item's ID and key</text>
+  <text x="516" y="312" font-size="12" fill="#42526E">• Its summary and description</text>
+
+  <!-- Invocation types -->
+  <text x="40" y="384" font-size="13" font-weight="700" fill="#172B4D">Invocation types</text>
+  <g font-family="Menlo, Consolas, monospace" font-size="11" fill="#172B4D" text-anchor="middle">
+    <rect x="40" y="396" width="130" height="28" rx="14" fill="#FFFFFF" stroke="#0052CC"/>
+    <text x="105" y="414">ISSUE_ASSIGNMENT</text>
+    <rect x="182" y="396" width="163" height="28" rx="14" fill="#FFFFFF" stroke="#0052CC"/>
+    <text x="263.500" y="414">ISSUE_COMMENT_MENTION</text>
+    <rect x="357" y="396" width="189" height="28" rx="14" fill="#FFFFFF" stroke="#0052CC"/>
+    <text x="451.500" y="414">ISSUE_WORKFLOW_ASSIGNMENT</text>
+    <rect x="558" y="396" width="156" height="28" rx="14" fill="#FFFFFF" stroke="#0052CC"/>
+    <text x="636" y="414">ISSUE_MANUAL_TRIGGER</text>
+    <rect x="726" y="396" width="90" height="28" rx="14" fill="#FFFFFF" stroke="#0052CC"/>
+    <text x="771" y="414">AUTOMATION</text>
+  </g>
+  <text x="40" y="446" font-size="11" fill="#6B778C">Assignment, comment @mention, workflow transition, manual trigger, and automation flow.</text>
+
+  <!-- Notes -->
+  <rect x="40" y="466" width="430" height="70" rx="10" fill="#F4F5F7" stroke="#C1C7D0"/>
+  <text x="56" y="490" font-size="13" font-weight="700" fill="#172B4D">Rich text becomes plain text</text>
+  <text x="56" y="510" font-size="12" fill="#42526E">Descriptions and comment bodies are converted from</text>
+  <text x="56" y="526" font-size="12" fill="#42526E">ADF to plain text. Rich formatting is not preserved.</text>
+
+  <rect x="490" y="466" width="430" height="70" rx="10" fill="#FFFAE6" stroke="#FF991F"/>
+  <text x="506" y="490" font-size="13" font-weight="700" fill="#172B4D">Rovo chat is text only</text>
+  <text x="506" y="510" font-size="12" fill="#42526E">Chat messages, including follow-ups after your agent asks</text>
+  <text x="506" y="526" font-size="12" fill="#42526E">for input, have no data part and no invocation type.</text>
+</svg>

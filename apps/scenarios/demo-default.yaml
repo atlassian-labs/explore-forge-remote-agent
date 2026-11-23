@@ -5,13 +5,8 @@ id: demo-default
 default: true
 steps:
   - event: status-update
-    state: working
-    message: "**Starting work on this task.**"
-  - event: status-update
-    message: "**Looking into the details...**"
-    delayMs: 5000
-  - event: status-update
     state: completed
     message: "**Finished the task.**"
     final: true
     delayMs: 5000
+    

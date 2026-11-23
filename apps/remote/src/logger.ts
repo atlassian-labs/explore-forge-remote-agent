@@ -70,6 +70,13 @@ export function formatPrettyRecord(line: string, color: boolean): string {
   return [header, ...body].join("\n");
 }
 
+// Bare-minimum output by default: Jira's request bodies, warnings, and errors.
+// Set LOG_VERBOSE=true to also log request lifecycle, FIT validation, scenario
+// diagnostics, and response bodies. Read on every call so tests can toggle it.
+export function verbose(): boolean {
+  return process.env.LOG_VERBOSE === "true";
+}
+
 function usePretty(): boolean {
   return process.env.LOG_FORMAT !== "json";
 }

@@ -21,7 +21,7 @@ import {
 } from "@forge-ahead/remote/logging";
 import express, { type Express } from "express";
 import { createFakeOAuth } from "./fake-oauth.js";
-import { log } from "./logger.js";
+import { log, verbose } from "./logger.js";
 import {
   createScenarioRunner,
   type Delay,
@@ -56,8 +56,12 @@ type ServerOptions = {
 };
 
 const remoteLogger: RemoteLogRecordLogger = {
-  debug: (record) => log.debug({ ...record }, record.message),
-  info: (record) => log.info({ ...record }, record.message),
+  debug: (record) => {
+    if (verbose()) log.debug({ ...record }, record.message);
+  },
+  info: (record) => {
+    if (verbose()) log.info({ ...record }, record.message);
+  },
   warn: (record) => log.warn({ ...record }, record.message),
   error: (record) => log.error({ ...record }, record.message),
 };
@@ -108,7 +112,7 @@ function logJsonRpcReplies(
           { jsonRpcMethod: method, jsonRpcError: redactSecrets(body) },
           "[JSON-RPC] error response",
         );
-      } else if (logBodies())
+      } else if (verbose() && logBodies())
         log.info(
           {
             jsonRpcMethod: method,
@@ -217,10 +221,13 @@ export function createA2aServer({
 
   const reportDiagnostics =
     diagnostics ??
-    ((event: DiagnosticEvent) =>
-      event.event === "scenario.transport.mismatch"
-        ? log.warn(event, "[A2A] diagnostic")
-        : log.info(event, "[A2A] diagnostic"));
+    ((event: DiagnosticEvent) => {
+      if (event.event === "scenario.transport.mismatch")
+        log.warn(event, "[A2A] diagnostic");
+      else if (event.event === "agent-status")
+        log.info(event, "[A2A] diagnostic");
+      else if (verbose()) log.info(event, "[A2A] diagnostic");
+    });
   const oauth = createFakeOAuth({
     diagnostics: reportDiagnostics,
     origin: process.env.OAUTH_PUBLIC_BASE_URL,
@@ -254,6 +261,7 @@ export function createA2aServer({
     ) => {
       const startedAt = performance.now();
       response.on("finish", () => {
+        if (!verbose()) return;
         log.info(
           {
             durationMs: performance.now() - startedAt,
@@ -282,7 +290,8 @@ export function createA2aServer({
       _response: express.Response,
       next: express.NextFunction,
     ) => {
-      log.info("[Forge Remote/FIT] invocation token validation started");
+      if (verbose())
+        log.info("[Forge Remote/FIT] invocation token validation started");
       next();
     },
     forgeRemoteAuthMiddleware({
@@ -303,7 +312,7 @@ export function createA2aServer({
             context: remoteRequest.forgeRemoteContext,
           }),
         );
-      log.info("[Forge Remote/FIT] invocation token validated");
+      if (verbose()) log.info("[Forge Remote/FIT] invocation token validated");
       // The tunnel/public origin Jira reached us on, for fake-OAuth links.
       const forwardedProto = request.headers["x-forwarded-proto"];
       oauth.rememberOrigin(
@@ -356,17 +365,18 @@ export function createA2aServer({
       _response: express.Response,
       next: express.NextFunction,
     ) => {
-      log.info(
-        {
-          // Names only, never values: shows whether Jira sent
-          // x-forge-oauth-user / x-forge-oauth-system.
-          headerNames: Object.keys(request.headers).sort(),
-          jsonRpcMethod: jsonRpcMethod(request.body),
-          method: request.method,
-          path: request.path,
-        },
-        "[HTTP] request received",
-      );
+      if (verbose())
+        log.info(
+          {
+            // Names only, never values: shows whether Jira sent
+            // x-forge-oauth-user / x-forge-oauth-system.
+            headerNames: Object.keys(request.headers).sort(),
+            jsonRpcMethod: jsonRpcMethod(request.body),
+            method: request.method,
+            path: request.path,
+          },
+          "[HTTP] request received",
+        );
       next();
     },
     (
@@ -374,7 +384,7 @@ export function createA2aServer({
       _response: express.Response,
       next: express.NextFunction,
     ) => {
-      log.info("[JSON-RPC] request dispatched to A2A handler");
+      if (verbose()) log.info("[JSON-RPC] request dispatched to A2A handler");
       next();
     },
     logJsonRpcReplies(

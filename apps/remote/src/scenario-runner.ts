@@ -371,8 +371,17 @@ export function createScenarioRunner({
 }: ScenarioRunnerOptions): AgentExecutor {
   const sessions = new Map<string, ScenarioSession>();
   // What the agent sends back to Jira: status messages, artifacts, cancels.
+  // A multi-line message is logged only up to its first line break.
   const logResponse = (event: string, fields: Record<string, unknown>) => {
-    if (logRequestData) diagnostics({ event, ...fields });
+    if (!logRequestData) return;
+    const { message } = fields;
+    diagnostics({
+      event,
+      ...fields,
+      ...(typeof message === "string"
+        ? { message: message.split("\n")[0] }
+        : {}),
+    });
   };
   const messageText = (message: Message | undefined): string =>
     (message?.parts ?? [])
@@ -512,6 +521,7 @@ export function createScenarioRunner({
       logResponse("agent-status", {
         taskId: session.taskId,
         contextId,
+        scenarioId: session.scenario.id,
         step: index,
         source: "jira-callback",
         state: TaskState[state],
@@ -615,6 +625,7 @@ export function createScenarioRunner({
       logResponse("agent-status", {
         taskId: session.taskId,
         contextId,
+        scenarioId: session.scenario.id,
         step: index,
         source: "auth-check",
         state: "TASK_STATE_FAILED",
@@ -657,6 +668,7 @@ export function createScenarioRunner({
     logResponse("agent-status", {
       taskId: session.taskId,
       contextId,
+      scenarioId: session.scenario.id,
       step: index,
       source: "status-update",
       state: TaskState[state],
@@ -900,6 +912,7 @@ export function createScenarioRunner({
       logResponse("agent-status", {
         taskId,
         contextId: session.contextId,
+        scenarioId: session.scenario.id,
         source: "cancel",
         state: "TASK_STATE_CANCELED",
         message: "Task canceled.",

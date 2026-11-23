@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 540" role="img" aria-labelledby="title desc" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
+  <title id="title">Handling Jira tasks: the two kinds of request</title>
+  <desc id="desc">Jira sends your remote agent JSON-RPC requests of two kinds. Message requests start a new task or add context to an existing one. Task requests fetch updates about a specific task. The agent keeps track of its tasks and may call the Jira REST API for more context.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#42526E"/>
+    </marker>
+  </defs>
+
+  <rect width="960" height="540" fill="#FFFFFF"/>
+  <text x="480" y="34" text-anchor="middle" font-size="22" font-weight="700" fill="#172B4D">Handling Jira tasks: the two kinds of request</text>
+  <text x="480" y="56" text-anchor="middle" font-size="12" fill="#42526E">Jira uses concepts from the A2A (Agent2Agent) protocol. A full A2A implementation is not required.</text>
+
+  <!-- Jira -->
+  <rect x="40" y="110" width="220" height="280" rx="12" fill="#DEEBFF" stroke="#0052CC" stroke-width="2"/>
+  <text x="150" y="144" text-anchor="middle" font-size="17" font-weight="700" fill="#172B4D">Jira</text>
+  <text x="150" y="172" text-anchor="middle" font-size="12" fill="#42526E">Users delegate tasks:</text>
+  <text x="150" y="190" text-anchor="middle" font-size="12" fill="#42526E">assign, @mention, or chat</text>
+  <text x="150" y="226" text-anchor="middle" font-size="12" fill="#42526E">Talks to your agent</text>
+  <text x="150" y="244" text-anchor="middle" font-size="12" fill="#42526E">over JSON-RPC</text>
+
+  <!-- Agent -->
+  <rect x="700" y="110" width="220" height="280" rx="12" fill="#E3FCEF" stroke="#006644" stroke-width="2"/>
+  <text x="810" y="144" text-anchor="middle" font-size="17" font-weight="700" fill="#172B4D">Your remote agent</text>
+  <text x="810" y="172" text-anchor="middle" font-size="12" fill="#42526E">Keeps track of every task</text>
+  <text x="810" y="190" text-anchor="middle" font-size="12" fill="#42526E">it has been asked to do</text>
+  <text x="810" y="226" text-anchor="middle" font-size="12" fill="#42526E">Shares the current state</text>
+  <text x="810" y="244" text-anchor="middle" font-size="12" fill="#42526E">of a task when Jira asks</text>
+
+  <!-- Lane 1: message request -->
+  <text x="480" y="138" text-anchor="middle" font-size="14" font-weight="700" fill="#172B4D">1. message request</text>
+  <line x1="262" y1="164" x2="698" y2="164" stroke="#42526E" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="480" y="184" text-anchor="middle" font-size="12" fill="#42526E">A user asked for a new task, or</text>
+  <text x="480" y="200" text-anchor="middle" font-size="12" fill="#42526E">added context to an existing one</text>
+  <line x1="698" y1="222" x2="262" y2="222" stroke="#42526E" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#arrow)"/>
+  <text x="480" y="240" text-anchor="middle" font-size="12" fill="#42526E">the task (id, contextId, state)</text>
+
+  <!-- Lane 2: task request -->
+  <text x="480" y="284" text-anchor="middle" font-size="14" font-weight="700" fill="#172B4D">2. task request</text>
+  <line x1="262" y1="310" x2="698" y2="310" stroke="#42526E" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="480" y="330" text-anchor="middle" font-size="12" fill="#42526E">Fetch updates about a specific task</text>
+  <line x1="698" y1="352" x2="262" y2="352" stroke="#42526E" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#arrow)"/>
+  <text x="480" y="370" text-anchor="middle" font-size="12" fill="#42526E">current state and a message for the user</text>
+
+  <!-- REST API -->
+  <line x1="810" y1="392" x2="810" y2="438" stroke="#42526E" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#arrow)"/>
+  <rect x="40" y="440" width="880" height="64" rx="10" fill="#F4F5F7" stroke="#C1C7D0"/>
+  <text x="60" y="466" font-size="13" font-weight="700" fill="#172B4D">Optional: call the Jira REST API</text>
+  <text x="60" y="486" font-size="12" fill="#42526E">If the agent needs more context or other work items, it fetches them itself, authenticating as the invoking user.</text>
+</svg>
