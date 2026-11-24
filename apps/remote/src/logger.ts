@@ -45,7 +45,7 @@ export function formatPrettyRecord(line: string, color: boolean): string {
   const levelName = String(level ?? "").toLowerCase();
   const timestamp =
     typeof time === "string" || typeof time === "number"
-      ? new Date(time).toISOString().slice(11, 23)
+      ? new Date(time).toISOString().slice(0, 23).replace("T", " ")
       : "";
 
   const scalars: string[] = [];

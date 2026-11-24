@@ -9,6 +9,7 @@ steps:
     message: "**Preparing Jira updates.**"
   - event: jira-callback
     action: read
+    real: false
   - event: jira-callback
     action: comment
   - event: jira-callback

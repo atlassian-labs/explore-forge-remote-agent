@@ -1687,7 +1687,7 @@ test("logs the JSON-RPC error body when GetTask cannot find the task", async (t)
 
   const logged = warn.mock.calls
     .map((call) => String(call.arguments[0]))
-    .find((line) => line.includes("[JSON-RPC] error response"));
+    .find((line) => line.includes("[remote → Jira] error response"));
   assert.ok(logged, "expected an error-response log line");
   assert.match(logged, /jsonRpcMethod=GetTask/);
   assert.ok(logged.includes(body.error.message), logged);
@@ -1726,7 +1726,7 @@ test("logs the body of a successful GetTask reply, and not when request logging 
       .map((entry) => String(entry.arguments[0]))
       .find(
         (text) =>
-          text.includes("[JSON-RPC] response body") &&
+          text.includes("[remote → Jira] response body") &&
           text.includes("jsonRpcMethod=GetTask"),
       );
     if (expected) {
@@ -1739,6 +1739,242 @@ test("logs the body of a successful GetTask reply, and not when request logging 
     }
     info.mock.restore();
   }
+});
+
+test("logs the x-b3-traceid header on the request and on agent-status lines", async (t) => {
+  const info = t.mock.method(console, "info", () => {});
+  const { baseUrl, token } = await createFixture(t);
+  const response = await fetch(`${baseUrl}/a2a/json-rpc`, {
+    method: "POST",
+    headers: {
+      authorization: `Bearer ${token()}`,
+      "a2a-version": "1.0",
+      "content-type": "application/json",
+      "x-b3-traceid": "trace-abc-123",
+    },
+    body: JSON.stringify({
+      jsonrpc: "2.0",
+      id: "traced",
+      method: "SendStreamingMessage",
+      params: {
+        message: {
+          role: "ROLE_USER",
+          messageId: "m-traced",
+          parts: [{ text: "hello" }],
+        },
+      },
+    }),
+  });
+  await response.text();
+
+  const lines = info.mock.calls.map((entry) => String(entry.arguments[0]));
+  assert.ok(
+    lines.some(
+      (line) =>
+        line.includes("[Jira → remote] request body") &&
+        line.includes("traceId=trace-abc-123"),
+    ),
+    "expected the request body line to carry the trace ID",
+  );
+  assert.ok(
+    lines.some(
+      (line) =>
+        line.includes("event=agent-status") &&
+        line.includes("traceId=trace-abc-123"),
+    ),
+    "expected agent-status lines to carry the trace ID",
+  );
+});
+
+test("logs the task state in the reply to GetTask without verbose logging", async (t) => {
+  const info = t.mock.method(console, "info", () => {});
+  const { request, token } = await createFixture(t);
+  const call = async (id: string, method: string, params: object) =>
+    request({
+      token: token(),
+      body: JSON.stringify({ jsonrpc: "2.0", id, method, params }),
+    });
+  const sent = (await (
+    await call("send", "SendMessage", {
+      message: {
+        role: "ROLE_USER",
+        messageId: "m-get",
+        parts: [{ text: "hello" }],
+      },
+    })
+  ).json()) as CompletedResponse;
+  await call("get", "GetTask", { id: sent.result.task.id });
+
+  const line = info.mock.calls
+    .map((entry) => String(entry.arguments[0]))
+    .find((text) => text.includes("[remote → Jira] GetTask response"));
+  assert.ok(line, "expected a GetTask response line");
+  assert.match(line, new RegExp(`taskId=${sent.result.task.id}`));
+  assert.match(line, /state=TASK_STATE_COMPLETED/);
+  assert.ok(line.includes("Finished the task."), line);
+  assert.equal(
+    info.mock.calls.some((entry) =>
+      String(entry.arguments[0]).includes("[remote → Jira] response body"),
+    ),
+    false,
+  );
+});
+
+test("logs when SubscribeToTask is accepted for a running task and when it is rejected", async (t) => {
+  const info = t.mock.method(console, "info", () => {});
+  const warn = t.mock.method(console, "warn", () => {});
+  const scenarios: LoadedScenario[] = [
+    {
+      id: "slow",
+      default: true,
+      match: { contains: [] },
+      steps: [
+        { event: "status-update", state: "working", message: "Started." },
+        ...Array.from({ length: 6 }, (_, index) => ({
+          event: "status-update" as const,
+          message: `Step ${index + 1}.`,
+          delayMs: 100,
+        })),
+        {
+          event: "status-update",
+          state: "completed",
+          message: "Done.",
+          final: true,
+          delayMs: 100,
+        },
+      ],
+    },
+  ];
+  const { baseUrl, token } = await createFixture(t, { scenarios });
+  const post = (body: object) =>
+    fetch(`${baseUrl}/a2a/json-rpc`, {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${token()}`,
+        "a2a-version": "1.0",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({ jsonrpc: "2.0", ...body }),
+    });
+
+  const started = await post({
+    id: "start",
+    method: "SendStreamingMessage",
+    params: {
+      message: {
+        role: "ROLE_USER",
+        messageId: "m-sub",
+        parts: [{ text: "hello" }],
+      },
+    },
+  });
+  const reader = started.body?.getReader();
+  assert.ok(reader);
+  const first = new TextDecoder().decode((await reader.read()).value);
+  const dataLine = first.split("\n").find((line) => line.startsWith("data: "));
+  assert.ok(dataLine, first);
+  const taskId = (
+    JSON.parse(dataLine.slice("data: ".length)) as {
+      result: { task: { id: string } };
+    }
+  ).result.task.id;
+
+  const subscribed = await post({
+    id: "sub",
+    method: "SubscribeToTask",
+    params: { id: taskId },
+  });
+  await subscribed.text();
+  await reader.cancel().catch(() => {});
+
+  const lines = info.mock.calls.map((entry) => String(entry.arguments[0]));
+  assert.ok(
+    lines.some(
+      (line) =>
+        line.includes("[remote → Jira] SubscribeToTask accepted") &&
+        line.includes(`taskId=${taskId}`),
+    ),
+    "expected an accepted line",
+  );
+  assert.ok(
+    lines.some(
+      (line) =>
+        line.includes("[remote → Jira] SubscribeToTask stream ended") &&
+        line.includes(`taskId=${taskId}`) &&
+        line.includes("jsonRpcId=sub") &&
+        line.includes("durationMs="),
+    ),
+    "expected a stream-ended line",
+  );
+
+  // The task is terminal now, so a second subscribe is rejected.
+  const rejected = await post({
+    id: "sub-2",
+    method: "SubscribeToTask",
+    params: { id: taskId },
+  });
+  await rejected.text();
+  assert.ok(
+    warn.mock.calls.some(
+      (entry) =>
+        String(entry.arguments[0]).includes("[remote → Jira] error response") &&
+        String(entry.arguments[0]).includes("jsonRpcMethod=SubscribeToTask"),
+    ),
+    "expected a rejection warning",
+  );
+});
+
+test("logs artifact updates by default", async (t) => {
+  const info = t.mock.method(console, "info", () => {});
+  const scenarios: LoadedScenario[] = [
+    {
+      id: "with-artifact",
+      default: true,
+      match: { contains: [] },
+      steps: [
+        { event: "status-update", state: "working", message: "Started." },
+        {
+          event: "artifact-update",
+          artifact: {
+            artifactId: "log-1",
+            name: "Progress log",
+            parts: [{ kind: "text", text: "- collected input" }],
+          },
+        },
+        {
+          event: "status-update",
+          state: "completed",
+          message: "Done.",
+          final: true,
+        },
+      ],
+    },
+  ];
+  const { request, token } = await createFixture(t, { scenarios });
+  const response = await request({
+    token: token(),
+    body: JSON.stringify({
+      jsonrpc: "2.0",
+      id: "artifact",
+      method: "SendStreamingMessage",
+      params: {
+        message: {
+          role: "ROLE_USER",
+          messageId: "m-artifact",
+          parts: [{ text: "hello" }],
+        },
+      },
+    }),
+  });
+  await response.text();
+
+  const line = info.mock.calls
+    .map((entry) => String(entry.arguments[0]))
+    .find((text) => text.includes("[remote → Jira] artifactUpdate"));
+  assert.ok(line, "expected an artifactUpdate line");
+  assert.match(line, /artifactId=log-1/);
+  assert.match(line, /scenarioId=with-artifact/);
+  assert.ok(line.includes("- collected input"), line);
 });
 
 test("runs a simulated Jira callback for Jira's real payload shape", async (t) => {

@@ -451,6 +451,7 @@ export function createScenarioRunner({
       logResponse("agent-artifact", {
         taskId: session.taskId,
         contextId,
+        scenarioId: session.scenario.id,
         step: index,
         artifactId: step.artifact.artifactId,
         name: step.artifact.name,

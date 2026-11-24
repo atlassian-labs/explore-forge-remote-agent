@@ -23,6 +23,11 @@ import express, { type Express } from "express";
 import { createFakeOAuth } from "./fake-oauth.js";
 import { log, verbose } from "./logger.js";
 import {
+  currentTraceId,
+  runWithTraceId,
+  traceIdFromHeaders,
+} from "./request-trace.js";
+import {
   createScenarioRunner,
   type Delay,
   type DiagnosticEvent,
@@ -96,6 +101,41 @@ function jsonRpcReplyDetails(body: object): Record<string, unknown> {
   };
 }
 
+// The status message text in a reply (the message shown to the user), if any.
+function replyMessage(body: object): string | undefined {
+  const result = "result" in body ? body.result : undefined;
+  if (typeof result !== "object" || result === null) return undefined;
+  const task = "task" in result ? result.task : result;
+  if (typeof task !== "object" || task === null) return undefined;
+  const status = "status" in task ? task.status : undefined;
+  const message =
+    typeof status === "object" && status !== null && "message" in status
+      ? status.message
+      : undefined;
+  const parts =
+    typeof message === "object" && message !== null && "parts" in message
+      ? message.parts
+      : undefined;
+  if (!Array.isArray(parts)) return undefined;
+  return parts
+    .map((part) =>
+      typeof part === "object" && part !== null && "text" in part
+        ? String(part.text)
+        : "",
+    )
+    .join("");
+}
+
+function record(value: unknown): Record<string, unknown> {
+  return typeof value === "object" && value !== null
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
+function firstLine(text: string | undefined): string | undefined {
+  return text?.split("\n")[0] || undefined;
+}
+
 function logJsonRpcReplies(
   logBodies: () => boolean,
 ): (
@@ -110,18 +150,27 @@ function logJsonRpcReplies(
       if ("error" in body && body.error) {
         log.warn(
           { jsonRpcMethod: method, jsonRpcError: redactSecrets(body) },
-          "[JSON-RPC] error response",
+          "[remote → Jira] error response",
         );
-      } else if (verbose() && logBodies())
+      } else {
+        // Always say what a non-streaming call answered with (GetTask,
+        // SendMessage, CancelTask): the task and its current state.
+        const details = jsonRpcReplyDetails(body);
         log.info(
-          {
-            jsonRpcMethod: method,
-            jsonRpcId: "id" in body ? body.id : undefined,
-            ...jsonRpcReplyDetails(body),
-            jsonRpcResponse: redactSecrets(body),
-          },
-          "[JSON-RPC] response body",
+          { ...details, message: firstLine(replyMessage(body)) },
+          `[remote → Jira] ${method ?? "JSON-RPC"} response`,
         );
+        if (verbose() && logBodies())
+          log.info(
+            {
+              jsonRpcMethod: method,
+              jsonRpcId: "id" in body ? body.id : undefined,
+              ...details,
+              jsonRpcResponse: redactSecrets(body),
+            },
+            "[remote → Jira] response body",
+          );
+      }
     };
     const json = response.json.bind(response);
     response.json = (body) => {
@@ -131,7 +180,59 @@ function logJsonRpcReplies(
     const write = response.write.bind(response) as (
       ...args: unknown[]
     ) => boolean;
+    // SubscribeToTask is an SSE stream: say once that it was accepted (with the
+    // task's current state) and when it ends. A rejection arrives as an error
+    // event, which `report` already logs.
+    let subscribed = false;
+    let acceptedAt = 0;
+    const requestBody = record(request.body);
+    // Identify the subscription on both lines: the task it watches and the
+    // JSON-RPC id Jira gave this particular request.
+    const subscription = {
+      jsonRpcId: requestBody.id,
+      taskId: record(requestBody.params).id,
+    };
+    if (method === "SubscribeToTask")
+      response.on("close", () => {
+        if (subscribed)
+          log.info(
+            {
+              ...subscription,
+              durationMs: Math.round(performance.now() - acceptedAt),
+            },
+            "[remote → Jira] SubscribeToTask stream ended",
+          );
+      });
     response.write = ((chunk: unknown, ...args: unknown[]) => {
+      if (
+        method === "SubscribeToTask" &&
+        !subscribed &&
+        typeof chunk === "string" &&
+        !chunk.startsWith("event: error")
+      ) {
+        const data = chunk
+          .split("\n")
+          .find((line) => line.startsWith("data: "));
+        try {
+          if (data) {
+            const body: unknown = JSON.parse(data.slice("data: ".length));
+            if (typeof body === "object" && body !== null) {
+              subscribed = true;
+              acceptedAt = performance.now();
+              log.info(
+                {
+                  jsonRpcId: subscription.jsonRpcId,
+                  ...jsonRpcReplyDetails(body),
+                  message: firstLine(replyMessage(body)),
+                },
+                "[remote → Jira] SubscribeToTask accepted",
+              );
+            }
+          }
+        } catch {
+          // Not a JSON event; nothing to report.
+        }
+      }
       if (typeof chunk === "string" && chunk.startsWith("event: error")) {
         const data = chunk
           .split("\n")
@@ -149,6 +250,27 @@ function logJsonRpcReplies(
     }) as typeof response.write;
     next();
   };
+}
+
+// Says which way a diagnostic travelled: the remote answering Jira, the remote
+// calling the Jira REST API, or Jira's REST reply coming back. Status lines use
+// the A2A event name: the first step is published as the stream's initial
+// `task` event, every later one (and a cancel) as a `statusUpdate` event.
+function diagnosticLabel(event: DiagnosticEvent): string {
+  switch (event.event) {
+    case "agent-status":
+      return event.step === 0
+        ? "[remote → Jira] task"
+        : "[remote → Jira] statusUpdate";
+    case "agent-artifact":
+      return "[remote → Jira] artifactUpdate";
+    case "jira-callback":
+      return "[remote → Jira API] callback";
+    case "jira-response":
+      return "[Jira API → remote] response";
+    default:
+      return "[A2A] diagnostic";
+  }
 }
 
 const agentCard: AgentCard = {
@@ -221,12 +343,22 @@ export function createA2aServer({
 
   const reportDiagnostics =
     diagnostics ??
-    ((event: DiagnosticEvent) => {
+    ((rawEvent: DiagnosticEvent) => {
+      const traceId = currentTraceId();
+      const event = traceId ? { ...rawEvent, traceId } : rawEvent;
       if (event.event === "scenario.transport.mismatch")
         log.warn(event, "[A2A] diagnostic");
-      else if (event.event === "agent-status")
-        log.info(event, "[A2A] diagnostic");
-      else if (verbose()) log.info(event, "[A2A] diagnostic");
+      else if (
+        event.event === "agent-status" ||
+        event.event === "agent-artifact" ||
+        event.event === "jira-callback" ||
+        event.event === "jira-response" ||
+        event.event === "compliance-warning"
+      ) {
+        // Why a callback was simulated is useful only when debugging.
+        const { simulatedBecause: _omitted, ...printed } = event;
+        log.info(verbose() ? event : printed, diagnosticLabel(event));
+      } else if (verbose()) log.info(event, "[A2A] diagnostic");
     });
   const oauth = createFakeOAuth({
     diagnostics: reportDiagnostics,
@@ -261,15 +393,20 @@ export function createA2aServer({
     ) => {
       const startedAt = performance.now();
       response.on("finish", () => {
-        if (!verbose()) return;
-        log.info(
+        // Failures always log, so a request rejected before the handler (a FIT
+        // failure returns 401, for example) is never silent. Successes log
+        // only in verbose mode.
+        const failed = response.statusCode >= 400;
+        if (!failed && !verbose()) return;
+        (failed ? log.warn : log.info).call(
+          log,
           {
             durationMs: performance.now() - startedAt,
             method: request.method,
             path: request.path,
             statusCode: response.statusCode,
           },
-          "[HTTP] request completed",
+          failed ? "[HTTP] request failed" : "[HTTP] request completed",
         );
       });
       next();
@@ -342,9 +479,11 @@ export function createA2aServer({
       _response: express.Response,
       next: express.NextFunction,
     ) =>
-      runWithScenarioTransport(
-        transportForJsonRpcMethod(jsonRpcMethod(request.body)),
-        next,
+      runWithTraceId(traceIdFromHeaders(request.headers), () =>
+        runWithScenarioTransport(
+          transportForJsonRpcMethod(jsonRpcMethod(request.body)),
+          next,
+        ),
       ),
     (
       request: express.Request,
@@ -355,8 +494,11 @@ export function createA2aServer({
       // and configuration); secret-shaped keys are redacted.
       if (logRequestData ?? process.env.LOG_AGENT_REQUEST_DATA !== "false")
         log.info(
-          { jsonRpcRequest: redactSecrets(request.body) },
-          "[JSON-RPC] request body",
+          {
+            traceId: traceIdFromHeaders(request.headers),
+            jsonRpcRequest: redactSecrets(request.body),
+          },
+          "[Jira → remote] request body",
         );
       next();
     },
