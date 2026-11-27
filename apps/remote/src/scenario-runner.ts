@@ -250,7 +250,7 @@ type JiraCallbackOutcome = {
 
 // Fields requested by a `read` step: enough to show what was read without
 // pulling the full issue (the description is a large Atlassian Document).
-const readFields = "summary,status,labels";
+const readFields = "status,labels";
 
 // Jira's reply as JSON when it is JSON, otherwise a bounded text excerpt.
 async function responseBody(response: Response): Promise<unknown> {
@@ -266,17 +266,15 @@ async function responseBody(response: Response): Promise<unknown> {
   }
 }
 
-// One line for the task status, from a `read` response: key, summary, status.
+// One line for the task status, from a `read` response: key and status. The
+// summary is already in the invocation payload, so it is not requested.
 function describeIssue(body: unknown): string | undefined {
   const issue = record(body);
   const fields = record(issue.fields);
   const key = text(issue.key);
-  const summary = text(fields.summary);
   const status = text(record(fields.status).name);
-  if (!key && !summary) return undefined;
-  return `Read Jira work item ${[key, summary].filter(Boolean).join(": ")}${
-    status ? ` (status: ${status})` : ""
-  }.`;
+  if (!key) return undefined;
+  return `Read Jira work item ${key}${status ? ` (status: ${status})` : ""}.`;
 }
 
 async function runJiraCallback(

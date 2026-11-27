@@ -880,7 +880,7 @@ test("runs explicitly enabled Jira callback smoke actions with validated identit
     [
       {
         method: "GET",
-        url: "https://jira.example.test/rest/api/3/issue/PROJ-42?fields=summary,status,labels",
+        url: "https://jira.example.test/rest/api/3/issue/PROJ-42?fields=status,labels",
       },
       {
         method: "POST",
@@ -905,7 +905,7 @@ test("runs explicitly enabled Jira callback smoke actions with validated identit
         event.event === "agent-status" &&
         event.source === "jira-callback" &&
         event.message ===
-          "Read Jira work item PROJ-42: Fix login (status: In Progress).",
+          "Read Jira work item PROJ-42 (status: In Progress).",
     ),
     JSON.stringify(events.filter((event) => event.source === "jira-callback")),
   );

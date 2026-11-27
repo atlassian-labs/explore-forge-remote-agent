@@ -39,8 +39,9 @@ remotes:
     baseUrl: ${REMOTE_BASE_URL}
 permissions:
   scopes:
-    # Lets the remote read Jira work items (the `read` step of the
-    # jira-callback scenario calls GET /rest/api/3/issue/{key}).
+    # Required because `productContexts` includes `jira`: the remote reads
+    # Jira work items (the `read` step of the jira-callback scenario calls
+    # GET /rest/api/3/issue/{key}).
     - read:jira-work
     # Needed for the `x-forge-oauth-user` and `x-forge-oauth-system` headers
     # (see `auth` on the endpoint and the remote): the user token and the
