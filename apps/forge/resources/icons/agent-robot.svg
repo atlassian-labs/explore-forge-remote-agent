@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1200pt" height="1200pt" version="1.1" viewBox="0 0 1200 1200" xmlns="http://www.w3.org/2000/svg">
+ <!-- Antenna -->
+ <circle cx="600" cy="215" r="55"/>
+ <rect x="570" y="260" width="60" height="100"/>
+ <!-- Ears -->
+ <rect x="200" y="490" width="70" height="220" rx="35"/>
+ <rect x="930" y="490" width="70" height="220" rx="35"/>
+ <!-- Head with eye and mouth cut-outs -->
+ <path fill-rule="evenodd" d="M410 340H790A110 110 0 0 1 900 450V710A110 110 0 0 1 790 820H410A110 110 0 0 1 300 710V450A110 110 0 0 1 410 340ZM415 540a55 55 0 1 0 110 0a55 55 0 1 0 -110 0ZM675 540a55 55 0 1 0 110 0a55 55 0 1 0 -110 0ZM475 670H725a25 25 0 0 1 0 50H475a25 25 0 0 1 0 -50Z"/>
+ <!-- Shoulders -->
+ <path d="M380 880H820A60 60 0 0 1 880 940V990H320V940A60 60 0 0 1 380 880Z"/>
+</svg>
