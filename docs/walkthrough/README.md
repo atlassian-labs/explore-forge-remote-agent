@@ -1,4 +1,4 @@
-![Remote agents in Jira: who owns what](remote-agent-terminology.svg)
+![Remote agents in Jira](remote-agent-terminology.svg)
 
 In this repository:
 
