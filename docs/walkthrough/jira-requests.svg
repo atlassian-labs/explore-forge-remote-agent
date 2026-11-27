@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 860" role="img" aria-labelledby="title desc" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 700" role="img" aria-labelledby="title desc" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
   <title id="title">Handling Jira tasks: the two kinds of request</title>
   <desc id="desc">Jira sends your remote agent JSON-RPC requests of two kinds. Message requests start a new task or add context to an existing one. Task requests fetch updates about a specific task. The agent keeps track of its tasks and may call the Jira REST API for more context.</desc>
   <defs>
@@ -7,7 +7,7 @@
     </marker>
   </defs>
 
-  <rect width="960" height="860" fill="#FFFFFF"/>
+  <rect width="960" height="700" fill="#FFFFFF"/>
   <text x="480" y="34" text-anchor="middle" font-size="22" font-weight="700" fill="#172B4D">Handling Jira tasks: the two kinds of request</text>
   <text x="480" y="56" text-anchor="middle" font-size="12" fill="#42526E">Jira uses concepts from the A2A (Agent2Agent) protocol. A full A2A implementation is not required.</text>
 
