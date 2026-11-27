@@ -268,6 +268,11 @@ function diagnosticLabel(event: DiagnosticEvent): string {
       return "[remote → Jira API] callback";
     case "jira-response":
       return "[Jira API → remote] response";
+    case "oauth-authorize":
+    case "oauth-consent":
+    case "oauth-token":
+    case "oauth-check":
+      return "[OAuth] connect flow";
     default:
       return "[A2A] diagnostic";
   }
@@ -353,6 +358,7 @@ export function createA2aServer({
         event.event === "agent-artifact" ||
         event.event === "jira-callback" ||
         event.event === "jira-response" ||
+        String(event.event).startsWith("oauth-") ||
         event.event === "compliance-warning"
       ) {
         // Why a callback was simulated is useful only when debugging.
@@ -409,12 +415,35 @@ export function createA2aServer({
           failed ? "[HTTP] request failed" : "[HTTP] request completed",
         );
       });
+      // Jira (or the tunnel) hung up before the response finished. For a stream
+      // this means later events have no reader, which is the thing to know when
+      // a task seems stuck on the Jira side.
+      response.on("close", () => {
+        if (response.writableFinished) return;
+        const body = record(request.body);
+        const params = record(body.params);
+        log.info(
+          {
+            durationMs: Math.round(performance.now() - startedAt),
+            jsonRpcMethod: body.method,
+            jsonRpcId: body.id,
+            taskId: params.id ?? record(params.message).taskId,
+            traceId: traceIdFromHeaders(request.headers),
+          },
+          "[Jira → remote] connection closed before the response finished",
+        );
+      });
       next();
     },
   );
   // Unauthenticated readiness probe: lets scripts/session.sh confirm the
   // remote is reachable through the tunnel before deploying Forge.
   app.get("/healthz", (_request, response) => {
+    response.status(204).end();
+  });
+  // Browsers ask for this when the consent page opens; there is no icon, and
+  // a 404 would log two warnings for nothing.
+  app.get("/favicon.ico", (_request, response) => {
     response.status(204).end();
   });
   // Simulated OAuth provider (consent page and token endpoint). Public: the

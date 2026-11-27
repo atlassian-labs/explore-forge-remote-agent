@@ -1977,6 +1977,83 @@ test("logs artifact updates by default", async (t) => {
   assert.ok(line.includes("- collected input"), line);
 });
 
+test("answers /favicon.ico without logging a warning", async (t) => {
+  const warn = t.mock.method(console, "warn", () => {});
+  const { baseUrl } = await createFixture(t);
+  const response = await fetch(`${baseUrl}/favicon.ico`);
+  assert.equal(response.status, 204);
+  assert.equal(warn.mock.calls.length, 0);
+});
+
+test("logs when the client closes a stream before the response finishes", {
+  timeout: 15000,
+}, async (t) => {
+  const info = t.mock.method(console, "info", () => {});
+  const scenarios: LoadedScenario[] = [
+    {
+      id: "hangup",
+      default: true,
+      match: { contains: [] },
+      steps: [
+        { event: "status-update", state: "working", message: "Started." },
+        ...Array.from({ length: 30 }, (_, index) => ({
+          event: "status-update" as const,
+          message: `Step ${index + 1}.`,
+          delayMs: 100,
+        })),
+        {
+          event: "status-update",
+          state: "completed",
+          message: "Done.",
+          final: true,
+          delayMs: 100,
+        },
+      ],
+    },
+  ];
+  const { baseUrl, token } = await createFixture(t, { scenarios });
+  const controller = new AbortController();
+  const response = await fetch(`${baseUrl}/a2a/json-rpc`, {
+    method: "POST",
+    signal: controller.signal,
+    headers: {
+      authorization: `Bearer ${token()}`,
+      "a2a-version": "1.0",
+      "content-type": "application/json",
+      "x-b3-traceid": "trace-hangup",
+    },
+    body: JSON.stringify({
+      jsonrpc: "2.0",
+      id: "hangup-1",
+      method: "SendStreamingMessage",
+      params: {
+        message: {
+          role: "ROLE_USER",
+          messageId: "m-hangup",
+          parts: [{ text: "hello" }],
+        },
+      },
+    }),
+  });
+  const reader = response.body?.getReader();
+  assert.ok(reader);
+  await reader.read();
+  controller.abort();
+  await new Promise((resolve) => setTimeout(resolve, 500));
+
+  const line = info.mock.calls
+    .map((entry) => String(entry.arguments[0]))
+    .find((text) =>
+      text.includes(
+        "[Jira → remote] connection closed before the response finished",
+      ),
+    );
+  assert.ok(line, "expected a client-closed line");
+  assert.match(line, /jsonRpcMethod=SendStreamingMessage/);
+  assert.match(line, /jsonRpcId=hangup-1/);
+  assert.match(line, /traceId=trace-hangup/);
+});
+
 test("runs a simulated Jira callback for Jira's real payload shape", async (t) => {
   const scenarios: LoadedScenario[] = [
     {
