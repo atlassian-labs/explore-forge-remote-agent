@@ -1,0 +1,100 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 1064" role="img" aria-labelledby="title desc" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
+  <title id="title">Walkthrough: the demo-jira scenario</title>
+  <desc id="desc">A user assigns a work item to the agent. Jira sends SendStreamingMessage to the remote service. The remote service makes a real call to the Jira REST API to read the work item, receives a 200 response, and reports the result on the stream. The comment, mention and transition steps are simulated and make no REST call. The task then completes and the stream closes.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#42526E"/>
+    </marker>
+    <marker id="arrow-api" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#5243AA"/>
+    </marker>
+  </defs>
+
+  <rect width="960" height="1064" fill="#FFFFFF"/>
+  <text x="480" y="34" text-anchor="middle" font-size="22" font-weight="700" fill="#172B4D">Walkthrough: the demo-jira scenario</text>
+  <text x="480" y="56" text-anchor="middle" font-size="12" fill="#42526E">The agent does more than stream updates: it calls the Jira REST API.</text>
+
+  <!-- REST API highlight band -->
+  <rect x="10" y="262" width="940" height="108" rx="10" fill="#EAE6FF" stroke="#6554C0" stroke-width="2" stroke-dasharray="6 4"/>
+  <text x="24" y="284" font-size="11" font-weight="700" fill="#5243AA">REST API CALL</text>
+
+  <!-- Participants -->
+  <rect x="70" y="84" width="160" height="40" rx="10" fill="#DEEBFF" stroke="#0052CC" stroke-width="2"/>
+  <text x="150" y="109" text-anchor="middle" font-size="15" font-weight="700" fill="#172B4D">Jira</text>
+  <rect x="350" y="84" width="200" height="40" rx="10" fill="#E3FCEF" stroke="#006644" stroke-width="2"/>
+  <text x="450" y="109" text-anchor="middle" font-size="15" font-weight="700" fill="#172B4D">Remote service</text>
+  <rect x="660" y="80" width="220" height="48" rx="10" fill="#EAE6FF" stroke="#6554C0" stroke-width="3"/>
+  <text x="770" y="101" text-anchor="middle" font-size="15" font-weight="700" fill="#172B4D">Jira REST API</text>
+  <text x="770" y="118" text-anchor="middle" font-size="11" fill="#5243AA">api.atlassian.com</text>
+
+  <line x1="150" y1="124" x2="150" y2="640" stroke="#C1C7D0" stroke-width="2" stroke-dasharray="4 4"/>
+  <line x1="450" y1="124" x2="450" y2="640" stroke="#C1C7D0" stroke-width="2" stroke-dasharray="4 4"/>
+  <line x1="770" y1="128" x2="770" y2="640" stroke="#B3A9E8" stroke-width="2" stroke-dasharray="4 4"/>
+
+  <!-- 1 request -->
+  <line x1="152" y1="170" x2="448" y2="170" stroke="#42526E" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="300" y="162" text-anchor="middle" font-size="12" font-weight="700" fill="#172B4D">SendStreamingMessage</text>
+  <text x="300" y="186" text-anchor="middle" font-size="11" fill="#42526E">Work item assigned to the agent</text>
+  <text x="300" y="201" text-anchor="middle" font-size="11" font-weight="700" fill="#5243AA">+ header x-forge-oauth-user: the user's token</text>
+
+  <!-- Payload callout -->
+  <rect x="478" y="142" width="262" height="68" rx="8" fill="#FFFAE6" stroke="#FF991F" stroke-width="2"/>
+  <text x="492" y="162" font-size="12" font-weight="700" fill="#172B4D">The invocation only carries:</text>
+  <text x="492" y="179" font-size="11" fill="#42526E">issue id, key, summary, description</text>
+  <text x="492" y="197" font-size="11" font-weight="700" fill="#5243AA">Any other field needs a REST API call.</text>
+
+  <!-- 2 task working -->
+  <line x1="448" y1="228" x2="152" y2="228" stroke="#42526E" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="300" y="220" text-anchor="middle" font-size="12" font-weight="700" fill="#172B4D">task: WORKING</text>
+  <text x="300" y="246" text-anchor="middle" font-size="11" fill="#42526E">"Preparing Jira updates."</text>
+
+  <text x="300" y="304" text-anchor="middle" font-size="11" font-weight="700" fill="#5243AA">Status and labels are not in the payload,</text>
+  <text x="300" y="320" text-anchor="middle" font-size="11" font-weight="700" fill="#5243AA">so the agent asks the REST API for them.</text>
+  <!-- 3 REST request -->
+  <line x1="452" y1="306" x2="768" y2="306" stroke="#5243AA" stroke-width="3" marker-end="url(#arrow-api)"/>
+  <text x="610" y="291" text-anchor="middle" font-size="12" font-weight="700" fill="#5243AA">GET /rest/api/3/issue/{id}?fields=summary,status,labels</text>
+  <text x="610" y="324" text-anchor="middle" font-size="11" fill="#5243AA">"read" step, using the token from x-forge-oauth-user</text>
+
+  <!-- 4 REST response -->
+  <line x1="768" y1="352" x2="452" y2="352" stroke="#5243AA" stroke-width="3" stroke-dasharray="6 4" marker-end="url(#arrow-api)"/>
+  <text x="610" y="344" text-anchor="middle" font-size="12" font-weight="700" fill="#5243AA">200 OK</text>
+  <text x="610" y="366" text-anchor="middle" font-size="11" fill="#5243AA">MOBL-63, status "To Do"</text>
+
+  <!-- 5 status update with result -->
+  <line x1="448" y1="420" x2="152" y2="420" stroke="#42526E" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="300" y="412" text-anchor="middle" font-size="12" font-weight="700" fill="#172B4D">statusUpdate: WORKING</text>
+  <text x="300" y="438" text-anchor="middle" font-size="11" fill="#42526E">"Read Jira work item MOBL-63 (status: To Do)."</text>
+
+  <!-- 6 simulated steps -->
+  <line x1="448" y1="499" x2="152" y2="499" stroke="#42526E" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#arrow)"/>
+  <text x="300" y="486" text-anchor="middle" font-size="12" font-weight="700" fill="#172B4D">3 × statusUpdate: WORKING</text>
+  <text x="300" y="518" text-anchor="middle" font-size="11" fill="#42526E">"Simulated Jira … callback"</text>
+
+  <!-- 7 completed -->
+  <line x1="448" y1="580" x2="152" y2="580" stroke="#42526E" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="300" y="572" text-anchor="middle" font-size="12" font-weight="700" fill="#172B4D">statusUpdate: COMPLETED</text>
+  <text x="300" y="598" text-anchor="middle" font-size="11" fill="#42526E">"Finished the Jira updates."  final: true</text>
+
+  <rect x="90" y="614" width="420" height="26" rx="13" fill="#FFEBE6" stroke="#DE350B"/>
+  <text x="300" y="631" text-anchor="middle" font-size="12" font-weight="700" fill="#172B4D">Terminal state reached: the stream closes</text>
+
+  <!-- Why this works -->
+  <rect x="40" y="668" width="880" height="236" rx="12" fill="#EAE6FF" stroke="#6554C0" stroke-width="2"/>
+  <text x="60" y="696" font-size="14" font-weight="700" fill="#5243AA">This only works because of the Forge manifest</text>
+  <rect x="60" y="712" width="320" height="170" rx="8" fill="#FFFFFF" stroke="#B3A9E8"/>
+  <g font-family="Menlo, Consolas, monospace" font-size="11" fill="#172B4D">
+    <text x="87.2" y="734">endpoint:</text>
+    <text x="100.4" y="750">- key: a2a-json-rpc</text>
+    <text x="113.6" y="766">auth:</text>
+    <text x="126.8" y="782" font-weight="700" fill="#5243AA">appUserToken:</text>
+    <text x="140.0" y="798" font-weight="700" fill="#5243AA">enabled: true</text>
+    <text x="74.0" y="822">permissions:</text>
+    <text x="87.2" y="838">scopes:</text>
+    <text x="100.4" y="854" font-weight="700" fill="#5243AA">- read:app-user-token</text>
+    <text x="100.4" y="870">- read:jira-work</text>
+  </g>
+  <text x="404" y="734" font-size="12" font-weight="700" fill="#172B4D">appUserToken + read:app-user-token</text>
+  <text x="404" y="752" font-size="12" fill="#42526E">Jira adds the invoking user's token to each message and task request,</text>
+  <text x="404" y="768" font-size="12" fill="#42526E">in the <tspan font-family="Menlo, Consolas, monospace" font-size="11" font-weight="700">x-forge-oauth-user</tspan> header. The remote sends it to the REST API,</text>
+  <text x="404" y="784" font-size="12" fill="#42526E">so the call runs as that user. read:jira-work covers the issue read.</text>
+</svg>

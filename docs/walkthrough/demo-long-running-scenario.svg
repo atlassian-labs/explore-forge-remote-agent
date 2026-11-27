@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 862" role="img" aria-labelledby="title desc" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
+  <title id="title">Walkthrough: the demo-long-running scenario</title>
+  <desc id="desc">Jira sends one SendStreamingMessage request and keeps the connection open. Over 75 seconds the remote service streams a task event, then an artifact update and a status update every 15 seconds, and finally a completed status update, after which the stream closes.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#42526E"/>
+    </marker>
+  </defs>
+
+  <rect width="960" height="862" fill="#FFFFFF"/>
+  <text x="480" y="34" text-anchor="middle" font-size="22" font-weight="700" fill="#172B4D">Walkthrough: the demo-long-running scenario</text>
+  <text x="480" y="56" text-anchor="middle" font-size="12" fill="#42526E">One request, one open connection, and a stream of events for about 75 seconds.</text>
+
+  <rect x="110" y="84" width="160" height="40" rx="10" fill="#DEEBFF" stroke="#0052CC" stroke-width="2"/>
+  <text x="190" y="109" text-anchor="middle" font-size="15" font-weight="700" fill="#172B4D">Jira</text>
+  <rect x="370" y="84" width="200" height="40" rx="10" fill="#E3FCEF" stroke="#006644" stroke-width="2"/>
+  <text x="470" y="109" text-anchor="middle" font-size="15" font-weight="700" fill="#172B4D">Remote service</text>
+  <line x1="190" y1="124" x2="190" y2="574" stroke="#C1C7D0" stroke-width="2" stroke-dasharray="4 4"/>
+  <line x1="470" y1="124" x2="470" y2="574" stroke="#C1C7D0" stroke-width="2" stroke-dasharray="4 4"/>
+
+  <!-- Request -->
+  <line x1="192" y1="146" x2="468" y2="146" stroke="#42526E" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="330" y="140" text-anchor="middle" font-size="12" font-weight="700" fill="#172B4D">SendStreamingMessage</text>
+  <text x="490" y="150" font-size="11" fill="#42526E">Response: 200 OK, Content-Type: text/event-stream. The connection stays open.</text>
+  <text x="70" y="190" text-anchor="end" font-size="12" font-weight="700" fill="#0747A6">0s</text>
+  <line x1="468" y1="186" x2="192" y2="186" stroke="#42526E" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="330" y="180" text-anchor="middle" font-size="12" font-weight="700" fill="#172B4D">task</text>
+  <text x="490" y="190" font-size="11" fill="#42526E">WORKING: "Long-running analysis started"  (first event must be a Task)</text>
+  <text x="70" y="236" text-anchor="end" font-size="12" font-weight="700" fill="#0747A6">15s</text>
+  <line x1="468" y1="232" x2="192" y2="232" stroke="#42526E" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="330" y="226" text-anchor="middle" font-size="12" font-weight="700" fill="#172B4D">artifactUpdate</text>
+  <text x="490" y="236" font-size="11" fill="#42526E">new artifact "Long-running analysis": [00:15] Collected input data</text>
+  <line x1="468" y1="268" x2="192" y2="268" stroke="#42526E" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="330" y="262" text-anchor="middle" font-size="12" font-weight="700" fill="#172B4D">statusUpdate</text>
+  <text x="490" y="272" font-size="11" fill="#42526E">WORKING: "Stage 1 of 4 complete."</text>
+  <text x="70" y="318" text-anchor="end" font-size="12" font-weight="700" fill="#0747A6">30s</text>
+  <line x1="468" y1="314" x2="192" y2="314" stroke="#42526E" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="330" y="308" text-anchor="middle" font-size="12" font-weight="700" fill="#172B4D">artifactUpdate</text>
+  <text x="490" y="318" font-size="11" fill="#42526E">append: [00:30] Normalized records</text>
+  <line x1="468" y1="350" x2="192" y2="350" stroke="#42526E" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="330" y="344" text-anchor="middle" font-size="12" font-weight="700" fill="#172B4D">statusUpdate</text>
+  <text x="490" y="354" font-size="11" fill="#42526E">WORKING: "Stage 2 of 4 complete."</text>
+  <text x="70" y="400" text-anchor="end" font-size="12" font-weight="700" fill="#0747A6">45s</text>
+  <line x1="468" y1="396" x2="192" y2="396" stroke="#42526E" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="330" y="390" text-anchor="middle" font-size="12" font-weight="700" fill="#172B4D">artifactUpdate</text>
+  <text x="490" y="400" font-size="11" fill="#42526E">append: [00:45] Ran comparison checks</text>
+  <line x1="468" y1="432" x2="192" y2="432" stroke="#42526E" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="330" y="426" text-anchor="middle" font-size="12" font-weight="700" fill="#172B4D">statusUpdate</text>
+  <text x="490" y="436" font-size="11" fill="#42526E">WORKING: "Stage 3 of 4 complete."</text>
+  <text x="70" y="482" text-anchor="end" font-size="12" font-weight="700" fill="#0747A6">60s</text>
+  <line x1="468" y1="478" x2="192" y2="478" stroke="#42526E" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="330" y="472" text-anchor="middle" font-size="12" font-weight="700" fill="#172B4D">artifactUpdate</text>
+  <text x="490" y="482" font-size="11" fill="#42526E">append, lastChunk: [01:00] Summarized findings</text>
+  <text x="70" y="528" text-anchor="end" font-size="12" font-weight="700" fill="#0747A6">75s</text>
+  <line x1="468" y1="524" x2="192" y2="524" stroke="#42526E" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="330" y="518" text-anchor="middle" font-size="12" font-weight="700" fill="#172B4D">statusUpdate</text>
+  <text x="490" y="528" font-size="11" fill="#42526E">COMPLETED: "Long-running analysis ready"  (final: true)</text>
+
+  <!-- Stream closes -->
+  <rect x="130" y="568" width="400" height="26" rx="13" fill="#FFEBE6" stroke="#DE350B"/>
+  <text x="330" y="585" text-anchor="middle" font-size="12" font-weight="700" fill="#172B4D">Terminal state reached: the stream closes</text>
+
+  <!-- Notes -->
+  <rect x="40" y="616" width="880" height="86" rx="10" fill="#F4F5F7" stroke="#C1C7D0"/>
+  <text x="60" y="640" font-size="13" font-weight="700" fill="#172B4D">What to notice</text>
+  <text x="60" y="662" font-size="12" fill="#42526E">• Each event is one SSE data: line holding a JSON-RPC response with exactly one of task, statusUpdate, artifactUpdate or message.</text>
+  <text x="60" y="680" font-size="12" fill="#42526E">• Artifact chunks with append: true grow one artifact; lastChunk: true marks it complete.</text>
+  <text x="60" y="698" font-size="12" fill="#42526E">• The stream closes on COMPLETED, FAILED, CANCELED or REJECTED.</text>
+</svg>
