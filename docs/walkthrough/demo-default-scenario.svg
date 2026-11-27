@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 660" role="img" aria-labelledby="title desc" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
+  <title id="title">Walkthrough: the demo-default scenario</title>
+  <desc id="desc">A user assigns a work item to the agent. Jira sends a SendStreamingMessage request to the remote service. No scenario matches the task text, so the remote falls back to demo-default. After a 5 second delay it streams a single completed status update marked final, and the stream closes.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#42526E"/>
+    </marker>
+  </defs>
+
+  <rect width="960" height="660" fill="#FFFFFF"/>
+  <text x="480" y="34" text-anchor="middle" font-size="22" font-weight="700" fill="#172B4D">Walkthrough: the demo-default scenario</text>
+  <text x="480" y="56" text-anchor="middle" font-size="12" fill="#42526E">The fallback scenario: one step, one final "completed" update.</text>
+
+  <g transform="translate(170 0)">
+  <!-- Participants -->
+  <rect x="40" y="84" width="200" height="44" rx="10" fill="#DEEBFF" stroke="#0052CC" stroke-width="2"/>
+  <text x="140" y="112" text-anchor="middle" font-size="15" font-weight="700" fill="#172B4D">Jira</text>
+  <rect x="340" y="84" width="220" height="44" rx="10" fill="#E3FCEF" stroke="#006644" stroke-width="2"/>
+  <text x="450" y="112" text-anchor="middle" font-size="15" font-weight="700" fill="#172B4D">Remote service</text>
+
+  <!-- Lifelines -->
+  <line x1="140" y1="128" x2="140" y2="500" stroke="#C1C7D0" stroke-width="2" stroke-dasharray="4 4"/>
+  <line x1="450" y1="128" x2="450" y2="500" stroke="#C1C7D0" stroke-width="2" stroke-dasharray="4 4"/>
+
+  <!-- Step 1 -->
+  <circle cx="22" cy="168" r="11" fill="#0052CC"/>
+  <text x="22" y="172" text-anchor="middle" font-size="12" font-weight="700" fill="#FFFFFF">1</text>
+  <line x1="142" y1="170" x2="448" y2="170" stroke="#42526E" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="295" y="160" text-anchor="middle" font-size="12" font-weight="700" fill="#172B4D">SendStreamingMessage</text>
+  <text x="295" y="190" text-anchor="middle" font-size="11" fill="#42526E">A user assigned a work item to the agent</text>
+  <text x="295" y="205" text-anchor="middle" font-size="11" fill="#42526E">(invocationType ISSUE_ASSIGNMENT)</text>
+
+  <!-- Step 2 -->
+  <circle cx="22" cy="258" r="11" fill="#0052CC"/>
+  <text x="22" y="262" text-anchor="middle" font-size="12" font-weight="700" fill="#FFFFFF">2</text>
+  <rect x="300" y="232" width="300" height="82" rx="8" fill="#F4F5F7" stroke="#C1C7D0"/>
+  <text x="316" y="254" font-size="12" font-weight="700" fill="#172B4D">Create the task and pick a scenario</text>
+  <text x="316" y="274" font-size="11" fill="#42526E">• New taskId and contextId</text>
+  <text x="316" y="291" font-size="11" fill="#42526E">• No scenario's match.contains phrase</text>
+  <text x="316" y="306" font-size="11" fill="#42526E">  is in the task text, so default: true wins</text>
+
+  <!-- Step 3 -->
+  <circle cx="22" cy="358" r="11" fill="#0052CC"/>
+  <text x="22" y="362" text-anchor="middle" font-size="12" font-weight="700" fill="#FFFFFF">3</text>
+  <rect x="438" y="336" width="24" height="64" rx="4" fill="#FFAB00" stroke="#FF8B00"/>
+  <text x="480" y="362" font-size="12" font-weight="700" fill="#172B4D">Wait 5 seconds</text>
+  <text x="480" y="380" font-size="11" fill="#42526E">delayMs: 5000 simulates the agent working.</text>
+  <text x="480" y="395" font-size="11" fill="#42526E">The stream stays open and nothing is sent.</text>
+
+  <!-- Step 4 -->
+  <circle cx="22" cy="448" r="11" fill="#0052CC"/>
+  <text x="22" y="452" text-anchor="middle" font-size="12" font-weight="700" fill="#FFFFFF">4</text>
+  <line x1="448" y1="450" x2="142" y2="450" stroke="#42526E" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#arrow)"/>
+  <text x="295" y="436" text-anchor="middle" font-size="12" font-weight="700" fill="#172B4D">status-update: TASK_STATE_COMPLETED</text>
+  <text x="295" y="471" text-anchor="middle" font-size="11" fill="#42526E">"Finished the task."  final: true</text>
+  <text x="295" y="486" text-anchor="middle" font-size="11" fill="#42526E">The stream closes and the task is done.</text>
+
+  </g>
+</svg>

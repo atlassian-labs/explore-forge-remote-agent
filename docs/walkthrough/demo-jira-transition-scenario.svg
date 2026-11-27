@@ -1,0 +1,106 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 1296" role="img" aria-labelledby="title desc" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
+  <title id="title">Walkthrough: the demo-jira scenario with a real transition</title>
+  <desc id="desc">A user assigns a work item to the agent. Jira sends SendStreamingMessage to the remote service. The remote service makes two real calls to the Jira REST API: a GET to read the work item and a POST to transition it, each as the invoking user. The comment and mention steps are simulated and make no REST call. The task then completes and the stream closes.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#42526E"/>
+    </marker>
+    <marker id="arrow-api" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#5243AA"/>
+    </marker>
+  </defs>
+
+  <rect width="960" height="1296" fill="#FFFFFF"/>
+  <text x="480" y="34" text-anchor="middle" font-size="22" font-weight="700" fill="#172B4D">Walkthrough: the demo-jira scenario, with a real transition</text>
+  <text x="480" y="56" text-anchor="middle" font-size="12" fill="#42526E">The agent reads the work item and then changes it, both through the Jira REST API.</text>
+
+  <!-- REST API highlight bands -->
+  <rect x="10" y="262" width="940" height="108" rx="10" fill="#EAE6FF" stroke="#6554C0" stroke-width="2" stroke-dasharray="6 4"/>
+  <text x="24" y="284" font-size="11" font-weight="700" fill="#5243AA">REST CALL: READ</text>
+  <rect x="10" y="570" width="940" height="122" rx="10" fill="#EAE6FF" stroke="#6554C0" stroke-width="2" stroke-dasharray="6 4"/>
+  <text x="24" y="592" font-size="11" font-weight="700" fill="#5243AA">REST CALL: TRANSITION</text>
+
+  <!-- Participants -->
+  <rect x="70" y="84" width="160" height="40" rx="10" fill="#DEEBFF" stroke="#0052CC" stroke-width="2"/>
+  <text x="150" y="109" text-anchor="middle" font-size="15" font-weight="700" fill="#172B4D">Jira</text>
+  <rect x="350" y="84" width="200" height="40" rx="10" fill="#E3FCEF" stroke="#006644" stroke-width="2"/>
+  <text x="450" y="109" text-anchor="middle" font-size="15" font-weight="700" fill="#172B4D">Remote service</text>
+  <rect x="660" y="80" width="220" height="48" rx="10" fill="#EAE6FF" stroke="#6554C0" stroke-width="3"/>
+  <text x="770" y="101" text-anchor="middle" font-size="15" font-weight="700" fill="#172B4D">Jira REST API</text>
+  <text x="770" y="118" text-anchor="middle" font-size="11" fill="#5243AA">api.atlassian.com</text>
+
+  <line x1="150" y1="124" x2="150" y2="850" stroke="#C1C7D0" stroke-width="2" stroke-dasharray="4 4"/>
+  <line x1="450" y1="124" x2="450" y2="850" stroke="#C1C7D0" stroke-width="2" stroke-dasharray="4 4"/>
+  <line x1="770" y1="128" x2="770" y2="850" stroke="#B3A9E8" stroke-width="2" stroke-dasharray="4 4"/>
+
+  <!-- request -->
+  <line x1="152" y1="170" x2="448" y2="170" stroke="#42526E" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="300" y="162" text-anchor="middle" font-size="12" font-weight="700" fill="#172B4D">SendStreamingMessage</text>
+  <text x="300" y="186" text-anchor="middle" font-size="11" fill="#42526E">Work item assigned to the agent</text>
+  <text x="300" y="201" text-anchor="middle" font-size="11" font-weight="700" fill="#5243AA">+ header x-forge-oauth-user: the user's token</text>
+
+  <line x1="448" y1="228" x2="152" y2="228" stroke="#42526E" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="300" y="220" text-anchor="middle" font-size="12" font-weight="700" fill="#172B4D">task: WORKING</text>
+  <text x="300" y="246" text-anchor="middle" font-size="11" fill="#42526E">"Preparing Jira updates."</text>
+
+  <!-- read -->
+  <line x1="452" y1="306" x2="768" y2="306" stroke="#5243AA" stroke-width="3" marker-end="url(#arrow-api)"/>
+  <text x="610" y="291" text-anchor="middle" font-size="12" font-weight="700" fill="#5243AA">GET /rest/api/3/issue/{id}?fields=status,labels</text>
+  <text x="610" y="324" text-anchor="middle" font-size="11" fill="#5243AA">"read" step, using the token from x-forge-oauth-user</text>
+  <line x1="768" y1="352" x2="452" y2="352" stroke="#5243AA" stroke-width="3" stroke-dasharray="6 4" marker-end="url(#arrow-api)"/>
+  <text x="610" y="344" text-anchor="middle" font-size="12" font-weight="700" fill="#5243AA">200 OK</text>
+  <text x="610" y="366" text-anchor="middle" font-size="11" fill="#5243AA">MOBL-63, status "To Do"</text>
+
+  <line x1="448" y1="420" x2="152" y2="420" stroke="#42526E" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="300" y="412" text-anchor="middle" font-size="12" font-weight="700" fill="#172B4D">statusUpdate: WORKING</text>
+  <text x="300" y="438" text-anchor="middle" font-size="11" fill="#42526E">"Read Jira work item MOBL-63 (status: To Do)."</text>
+
+  <!-- simulated -->
+  <line x1="448" y1="499" x2="152" y2="499" stroke="#42526E" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#arrow)"/>
+  <text x="300" y="486" text-anchor="middle" font-size="12" font-weight="700" fill="#172B4D">2 × statusUpdate: WORKING</text>
+  <text x="300" y="518" text-anchor="middle" font-size="11" fill="#42526E">"Simulated Jira … callback"</text>
+
+  <!-- transition -->
+  <line x1="452" y1="624" x2="768" y2="624" stroke="#5243AA" stroke-width="3" marker-end="url(#arrow-api)"/>
+  <text x="610" y="609" text-anchor="middle" font-size="12" font-weight="700" fill="#5243AA">POST /rest/api/3/issue/{id}/transitions</text>
+  <text x="610" y="642" text-anchor="middle" font-size="11" fill="#5243AA">"transition" step, transitionId: 21</text>
+  <line x1="768" y1="672" x2="452" y2="672" stroke="#5243AA" stroke-width="3" stroke-dasharray="6 4" marker-end="url(#arrow-api)"/>
+  <text x="610" y="664" text-anchor="middle" font-size="12" font-weight="700" fill="#5243AA">204 No Content</text>
+  <text x="610" y="686" text-anchor="middle" font-size="11" fill="#5243AA">The work item is changed in Jira</text>
+
+  <line x1="448" y1="740" x2="152" y2="740" stroke="#42526E" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="300" y="732" text-anchor="middle" font-size="12" font-weight="700" fill="#172B4D">statusUpdate: WORKING</text>
+  <text x="300" y="758" text-anchor="middle" font-size="11" fill="#42526E">"Jira transition callback (completed)."</text>
+
+  <line x1="448" y1="800" x2="152" y2="800" stroke="#42526E" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="300" y="792" text-anchor="middle" font-size="12" font-weight="700" fill="#172B4D">statusUpdate: COMPLETED</text>
+  <text x="300" y="818" text-anchor="middle" font-size="11" fill="#42526E">"Finished the Jira updates."  final: true</text>
+
+  <rect x="90" y="834" width="420" height="26" rx="13" fill="#FFEBE6" stroke="#DE350B"/>
+  <text x="300" y="851" text-anchor="middle" font-size="12" font-weight="700" fill="#172B4D">Terminal state reached: the stream closes</text>
+
+  <!-- Why this works -->
+  <rect x="40" y="888" width="880" height="248" rx="12" fill="#EAE6FF" stroke="#6554C0" stroke-width="2"/>
+  <text x="60" y="916" font-size="14" font-weight="700" fill="#5243AA">This only works because of the Forge manifest</text>
+  <rect x="60" y="932" width="320" height="186" rx="8" fill="#FFFFFF" stroke="#B3A9E8"/>
+  <g font-family="Menlo, Consolas, monospace" font-size="11" fill="#172B4D">
+    <text x="87.2" y="954">endpoint:</text>
+    <text x="100.4" y="970">- key: a2a-json-rpc</text>
+    <text x="113.6" y="986">auth:</text>
+    <text x="126.8" y="1002" font-weight="700" fill="#5243AA">appUserToken:</text>
+    <text x="140.0" y="1018" font-weight="700" fill="#5243AA">enabled: true</text>
+    <text x="74.0" y="1042">permissions:</text>
+    <text x="87.2" y="1058">scopes:</text>
+    <text x="100.4" y="1074" font-weight="700" fill="#5243AA">- read:app-user-token</text>
+    <text x="100.4" y="1090">- read:jira-work</text>
+    <text x="100.4" y="1106" font-weight="700" fill="#5243AA">- write:jira-work</text>
+  </g>
+  <text x="404" y="954" font-size="12" font-weight="700" fill="#172B4D">appUserToken + read:app-user-token</text>
+  <text x="404" y="972" font-size="12" fill="#42526E">Jira adds the invoking user's token to each message and task request,</text>
+  <text x="404" y="988" font-size="12" fill="#42526E">in the <tspan font-family="Menlo, Consolas, monospace" font-size="11" font-weight="700">x-forge-oauth-user</tspan> header. The remote sends it to the REST API,</text>
+  <text x="404" y="1004" font-size="12" fill="#42526E">so every call runs as that user.</text>
+  <text x="404" y="1036" font-size="12" font-weight="700" fill="#172B4D">read:jira-work and write:jira-work</text>
+  <text x="404" y="1054" font-size="12" fill="#42526E">read:jira-work covers the GET that reads the work item.</text>
+  <text x="404" y="1070" font-size="12" fill="#42526E">write:jira-work is also needed to change it, as the POST to</text>
+  <text x="404" y="1086" font-size="12" fill="#42526E">/transitions does.</text>
+</svg>
