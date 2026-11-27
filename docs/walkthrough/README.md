@@ -1,3 +1,5 @@
+<!-- Chart spacing: GitHub strips blank-line tricks (<br>, &nbsp;), so every chart SVG carries 160px of white padding at the bottom (extra height in both viewBox and the background rect). Add the same padding to any new chart. -->
+
 ![Remote agents in Jira](remote-agent-terminology.svg)
 
 In this repository:
